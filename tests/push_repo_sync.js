@@ -10,7 +10,10 @@ if (!token) {
 
 try {
   execSync('git add .', { stdio: 'inherit' });
-  execSync('git commit -m "Update GitHub Cloud Sync to use private repo contents API (fixes 404)"', { stdio: 'inherit' });
+  try {
+    execSync('git commit -m "Update GitHub Cloud Sync to use private repo contents API (fixes 404)"', { stdio: 'inherit' });
+  } catch (e) {}
+  execSync('git pull --rebase origin main', { stdio: 'inherit' });
   execSync('git push origin main', { stdio: 'inherit' });
   console.log('✔ Successfully pushed GitHub Cloud Sync fix to https://github.com/lalaliwe/goonscroll');
 } catch (err) {
