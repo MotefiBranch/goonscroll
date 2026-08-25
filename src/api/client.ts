@@ -154,9 +154,12 @@ export async function pullFromGitHubGist(token?: string): Promise<{ success: boo
   return data;
 }
 
-export function getProxiedMediaUrl(url: string): string {
+export function getProxiedMediaUrl(url: string, nonce?: number): string {
   if (!url) return '';
-  // If already proxied or relative
-  if (url.startsWith('/api/proxy')) return url;
-  return `${API_BASE}/proxy/media?url=${encodeURIComponent(url)}`;
+  // If already relative without proxy
+  if (url.startsWith('/api/proxy')) {
+    return nonce ? `${url}&_t=${nonce}` : url;
+  }
+  const base = `${API_BASE}/proxy/media?url=${encodeURIComponent(url)}`;
+  return nonce ? `${base}&_t=${nonce}` : base;
 }

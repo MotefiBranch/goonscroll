@@ -199,7 +199,12 @@ export async function proxyMedia(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Range');
-    res.setHeader('Cache-Control', 'public, max-age=86400');
+    
+    if (proxyRes.statusCode === 200 || proxyRes.statusCode === 206) {
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+    } else {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    }
 
     // If cacheable non-range image under 15MB, buffer and cache
     const contentType = proxyRes.headers['content-type'] || '';

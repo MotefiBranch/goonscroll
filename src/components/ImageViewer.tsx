@@ -18,22 +18,24 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
   const [loaded, setLoaded] = useState(false);
   const [srcIndex, setSrcIndex] = useState(0);
   const [error, setError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   // Reset state when post URL changes
   React.useEffect(() => {
     setLoaded(false);
     setSrcIndex(0);
     setError(false);
+    setRetryNonce(0);
   }, [url]);
 
   // Multi-tier fallback pipeline (all proxied through GoonScroll server with proper Referer & User-Agent):
   const candidates = [
-    getProxiedMediaUrl(url),
-    previewUrl && previewUrl !== url ? getProxiedMediaUrl(previewUrl) : null,
+    getProxiedMediaUrl(url, retryNonce),
+    previewUrl && previewUrl !== url ? getProxiedMediaUrl(previewUrl, retryNonce) : null,
   ].filter(Boolean) as string[];
 
-  const currentSrc = candidates[srcIndex] || getProxiedMediaUrl(url);
-  const thumbSrc = previewUrl ? getProxiedMediaUrl(previewUrl) : currentSrc;
+  const currentSrc = candidates[srcIndex] || getProxiedMediaUrl(url, retryNonce);
+  const thumbSrc = previewUrl ? getProxiedMediaUrl(previewUrl, retryNonce) : currentSrc;
 
   const handleImageError = () => {
     if (srcIndex < candidates.length - 1) {
@@ -59,6 +61,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
 
       {/* Main Image with multi-tier fallback */}
       <img
+        key={`${currentSrc}-${retryNonce}`}
         src={currentSrc}
         alt={altText}
         loading="eager"
@@ -82,9 +85,10 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
           <button
             onClick={(e) => {
               e.stopPropagation();
+              setLoaded(false);
               setError(false);
               setSrcIndex(0);
-              setLoaded(false);
+              setRetryNonce(Date.now());
             }}
             className="mt-1 px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-full active:scale-95 transition-all shadow pointer-events-auto"
           >
