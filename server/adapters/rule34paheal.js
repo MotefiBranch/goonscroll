@@ -1,8 +1,9 @@
 import { XMLParser } from 'fast-xml-parser';
-import { buildQueryTags, detectMediaType, normalizeRating, filterOutBlacklisted } from './types.js';
+import { detectMediaType, normalizeRating, filterOutBlacklisted } from './types.js';
 
 export async function fetchRule34Paheal({ tags = '', page = 0, limit = 40, blacklist = [] }) {
-  const queryTags = buildQueryTags(tags, blacklist);
+  // Paheal's WAF throws 403 on long negative tag queries; send user tags directly and filter blacklist locally
+  const queryTags = (tags || '').trim();
   const url = `https://rule34.paheal.net/api/danbooru/find_posts?tags=${encodeURIComponent(queryTags)}&limit=${limit}&offset=${page * limit}`;
 
   const response = await fetch(url, {
@@ -13,7 +14,8 @@ export async function fetchRule34Paheal({ tags = '', page = 0, limit = 40, black
 
   if (!response.ok) {
     if (response.status === 404) return [];
-    throw new Error(`Paheal API error: ${response.status}`);
+    console.error(`Paheal API error: ${response.status}`);
+    return [];
   }
 
   const xmlText = await response.text();

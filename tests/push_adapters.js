@@ -11,11 +11,11 @@ if (!token) {
 try {
   execSync('git add .', { stdio: 'inherit' });
   try {
-    execSync('git commit -m "Update GitHub Cloud Sync to use private repo contents API (fixes 404)"', { stdio: 'inherit' });
+    execSync('git commit -m "Fix Paheal WAF 403, Konachan NSFW domain, and Danbooru 2-tag query limit"', { stdio: 'inherit' });
   } catch (e) {}
   execSync('git pull --rebase origin main', { stdio: 'inherit' });
   execSync('git push origin main', { stdio: 'inherit' });
-  console.log('✔ Successfully pushed GitHub Cloud Sync fix to https://github.com/lalaliwe/goonscroll');
+  console.log('✔ Successfully pushed booru adapter fixes to https://github.com/lalaliwe/goonscroll');
 } catch (err) {
   console.error('Git error:', err.message);
   process.exit(1);

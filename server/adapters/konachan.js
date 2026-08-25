@@ -1,17 +1,18 @@
-import { buildQueryTags, detectMediaType, normalizeRating, filterOutBlacklisted } from './types.js';
+import { detectMediaType, normalizeRating, filterOutBlacklisted } from './types.js';
 
 export async function fetchKonachan({ tags = '', page = 1, limit = 40, blacklist = [] }) {
-  const queryTags = buildQueryTags(tags, blacklist);
-  const url = `https://konachan.net/post.json?tags=${encodeURIComponent(queryTags)}&page=${page}&limit=${limit}`;
+  // Use konachan.com (adult domain) and filter blacklist locally to avoid Moebooru tag count limit
+  const queryTags = (tags || '').trim();
+  const url = `https://konachan.com/post.json?tags=${encodeURIComponent(queryTags)}&page=${page}&limit=${limit}`;
 
   const response = await fetch(url, {
     headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) GoonScroll/1.0',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     },
   });
 
   if (!response.ok) return [];
-  const data = await response.json();
+  const data = await response.json().catch(() => []);
   if (!Array.isArray(data)) return [];
 
   const items = data.map(post => {
@@ -24,7 +25,7 @@ export async function fetchKonachan({ tags = '', page = 1, limit = 40, blacklist
       id: `konachan_${post.id}`,
       sourceId: 'konachan',
       sourceName: 'Konachan',
-      sourceUrl: `https://konachan.net/post/show/${post.id}`,
+      sourceUrl: `https://konachan.com/post/show/${post.id}`,
       type,
       mediaUrl,
       previewUrl,
@@ -48,7 +49,7 @@ export async function fetchKonachan({ tags = '', page = 1, limit = 40, blacklist
 
 export async function autocompleteKonachan(query = '') {
   if (!query || query.length < 2) return [];
-  const url = `https://konachan.net/tag.json?name=${encodeURIComponent(query)}&limit=10`;
+  const url = `https://konachan.com/tag.json?name=${encodeURIComponent(query)}&limit=10`;
   try {
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
