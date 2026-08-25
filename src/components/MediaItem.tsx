@@ -30,6 +30,7 @@ export const MediaItem: React.FC<MediaItemProps> = ({
   if (isVideo) {
     return (
       <VideoPlayer
+        key={item.id}
         url={item.mediaUrl}
         previewUrl={item.previewUrl}
         fitMode={fitMode}
@@ -43,6 +44,7 @@ export const MediaItem: React.FC<MediaItemProps> = ({
 
   return (
     <ImageViewer
+      key={item.id}
       url={item.mediaUrl}
       previewUrl={item.previewUrl}
       altText={item.tags?.all?.slice(0, 5).join(', ')}

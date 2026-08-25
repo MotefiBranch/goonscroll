@@ -19,6 +19,13 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
   const [srcIndex, setSrcIndex] = useState(0);
   const [error, setError] = useState(false);
 
+  // Reset state when post URL changes
+  React.useEffect(() => {
+    setLoaded(false);
+    setSrcIndex(0);
+    setError(false);
+  }, [url]);
+
   // Multi-tier fallback pipeline:
   // 1. Proxied full media
   // 2. Proxied thumbnail / sample
