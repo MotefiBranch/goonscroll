@@ -11,11 +11,11 @@ if (!token) {
 try {
   execSync('git add .', { stdio: 'inherit' });
   try {
-    execSync('git commit -m "Fix browser disk cache poisoning: prevent caching error responses and use cache-busting retry nonce"', { stdio: 'inherit' });
+    execSync('git commit -m "Update VideoPlayer to stream all video via proxied stream and preserve controls"', { stdio: 'inherit' });
   } catch (e) {}
   execSync('git pull --rebase origin main', { stdio: 'inherit' });
   execSync('git push origin main', { stdio: 'inherit' });
-  console.log('✔ Successfully pushed cache poisoning fix to https://github.com/lalaliwe/goonscroll');
+  console.log('✔ Successfully pushed VideoPlayer proxy update to https://github.com/lalaliwe/goonscroll');
 } catch (err) {
   console.error('Git error:', err.message);
   process.exit(1);
