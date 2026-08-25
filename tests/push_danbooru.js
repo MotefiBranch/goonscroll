@@ -11,11 +11,11 @@ if (!token) {
 try {
   execSync('git add .', { stdio: 'inherit' });
   try {
-    execSync('git commit -m "Fix Paheal WAF 403, Konachan NSFW domain, and Danbooru 2-tag query limit"', { stdio: 'inherit' });
+    execSync('git commit -m "Support dual Danbooru auth (Basic Auth + URL login params) with custom User-Agent"', { stdio: 'inherit' });
   } catch (e) {}
   execSync('git pull --rebase origin main', { stdio: 'inherit' });
   execSync('git push origin main', { stdio: 'inherit' });
-  console.log('✔ Successfully pushed booru adapter fixes to https://github.com/lalaliwe/goonscroll');
+  console.log('✔ Successfully pushed Danbooru auth updates to https://github.com/lalaliwe/goonscroll');
 } catch (err) {
   console.error('Git error:', err.message);
   process.exit(1);

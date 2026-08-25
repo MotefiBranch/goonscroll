@@ -1,27 +1,35 @@
 import { detectMediaType, normalizeRating, filterOutBlacklisted } from './types.js';
 
 export async function fetchDanbooru({ tags = '', page = 1, limit = 40, blacklist = [], credentials = {} }) {
-  // Danbooru limits anonymous searches to 2 tags max; avoid injecting 5+ negative tags in query URL
+  const username = (credentials.username || '').trim();
+  const apiKey = (credentials.apiKey || '').trim();
+  const isAuthenticated = Boolean(username && apiKey);
+
+  // Free anonymous users are strictly limited to 2 tags max on Danbooru
   const userTagList = (tags || '').trim().split(/\s+/).filter(Boolean);
-  const queryTags = userTagList.slice(0, 2).join(' ');
-  const encodedTags = encodeURIComponent(queryTags);
-  const url = `https://danbooru.donmai.us/posts.json?tags=${encodedTags}&page=${page}&limit=${limit}`;
+  const queryTags = isAuthenticated ? userTagList.join(' ') : userTagList.slice(0, 2).join(' ');
+  
+  let url = `https://danbooru.donmai.us/posts.json?tags=${encodeURIComponent(queryTags)}&page=${page}&limit=${limit}`;
 
   const headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'User-Agent': isAuthenticated
+      ? `GoonScroll/1.0 (user ${username})`
+      : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   };
 
-  if (credentials.username && credentials.apiKey) {
-    const authString = Buffer.from(`${credentials.username}:${credentials.apiKey}`).toString('base64');
+  if (isAuthenticated) {
+    // Official Danbooru Authentication: HTTP Basic Auth & URL parameters
+    const authString = Buffer.from(`${username}:${apiKey}`).toString('base64');
     headers['Authorization'] = `Basic ${authString}`;
+    url += `&login=${encodeURIComponent(username)}&api_key=${encodeURIComponent(apiKey)}`;
   }
 
   try {
     const response = await fetch(url, { headers });
 
     if (!response.ok) {
-      if (response.status === 404 || response.status === 403 || response.status === 422) {
-        console.warn(`Danbooru returned ${response.status} (API key may be required for full access)`);
+      if (response.status === 404 || response.status === 403 || response.status === 422 || response.status === 401) {
+        console.warn(`Danbooru returned ${response.status} (Check username & API key in Settings -> Accounts if authentication fails)`);
         return [];
       }
       return [];
