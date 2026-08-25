@@ -368,6 +368,133 @@ class StorageEngine {
       favorites: this.getFavorites()
     };
   }
+
+  /* --- GitHub Gist Cloud Sync --- */
+
+  async syncToGitHub(customToken = null) {
+    const token = customToken || process.env.GITHUB_TOKEN;
+    if (!token) {
+      throw new Error('No GitHub Token configured in .env');
+    }
+
+    const backupData = this.exportBackup();
+    const backupJsonString = JSON.stringify(backupData, null, 2);
+
+    const listRes = await fetch('https://api.github.com/gists', {
+      headers: {
+        'Authorization': `token ${token}`,
+        'User-Agent': 'GoonScroll-Sync',
+        'Accept': 'application/vnd.github.v3+json',
+      }
+    });
+
+    if (!listRes.ok) {
+      const errBody = await listRes.json().catch(() => ({}));
+      throw new Error(errBody.message || `GitHub API error: ${listRes.status}`);
+    }
+
+    const gists = await listRes.json();
+    const existingGist = gists.find(g => g.files && g.files['goonscroll_backup.json']);
+
+    let resultGist;
+    if (existingGist) {
+      const updateRes = await fetch(`https://api.github.com/gists/${existingGist.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `token ${token}`,
+          'User-Agent': 'GoonScroll-Sync',
+          'Content-Type': 'application/json',
+          'Accept': 'application/vnd.github.v3+json',
+        },
+        body: JSON.stringify({
+          description: 'GoonScroll Private Cloud Backup',
+          files: {
+            'goonscroll_backup.json': {
+              content: backupJsonString,
+            }
+          }
+        })
+      });
+      if (!updateRes.ok) throw new Error(`Failed to update Gist: ${updateRes.status}`);
+      resultGist = await updateRes.json();
+    } else {
+      const createRes = await fetch('https://api.github.com/gists', {
+        method: 'POST',
+        headers: {
+          'Authorization': `token ${token}`,
+          'User-Agent': 'GoonScroll-Sync',
+          'Content-Type': 'application/json',
+          'Accept': 'application/vnd.github.v3+json',
+        },
+        body: JSON.stringify({
+          description: 'GoonScroll Private Cloud Backup',
+          public: false,
+          files: {
+            'goonscroll_backup.json': {
+              content: backupJsonString,
+            }
+          }
+        })
+      });
+      if (!createRes.ok) throw new Error(`Failed to create Gist: ${createRes.status}`);
+      resultGist = await createRes.json();
+    }
+
+    return {
+      success: true,
+      gistId: resultGist.id,
+      updatedAt: resultGist.updated_at,
+      url: resultGist.html_url,
+    };
+  }
+
+  async pullFromGitHub(customToken = null) {
+    const token = customToken || process.env.GITHUB_TOKEN;
+    if (!token) {
+      throw new Error('No GitHub Token configured in .env');
+    }
+
+    const listRes = await fetch('https://api.github.com/gists', {
+      headers: {
+        'Authorization': `token ${token}`,
+        'User-Agent': 'GoonScroll-Sync',
+        'Accept': 'application/vnd.github.v3+json',
+      }
+    });
+
+    if (!listRes.ok) {
+      const errBody = await listRes.json().catch(() => ({}));
+      throw new Error(errBody.message || `GitHub API error: ${listRes.status}`);
+    }
+
+    const gists = await listRes.json();
+    const existingGist = gists.find(g => g.files && g.files['goonscroll_backup.json']);
+    if (!existingGist) {
+      throw new Error('No GoonScroll backup Gist found in your GitHub account');
+    }
+
+    const fileMeta = existingGist.files['goonscroll_backup.json'];
+    let content = fileMeta.content;
+    if (!content && fileMeta.raw_url) {
+      const rawRes = await fetch(fileMeta.raw_url, {
+        headers: {
+          'Authorization': `token ${token}`,
+          'User-Agent': 'GoonScroll-Sync',
+        }
+      });
+      content = await rawRes.text();
+    }
+
+    const parsedBackup = JSON.parse(content);
+    const imported = this.importBackup(parsedBackup);
+
+    return {
+      success: true,
+      result: imported,
+      gistId: existingGist.id,
+      updatedAt: existingGist.updated_at,
+    };
+  }
 }
 
 export const storage = new StorageEngine();

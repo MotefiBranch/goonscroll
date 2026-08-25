@@ -126,6 +126,34 @@ export async function importBackupJson(backupData: any): Promise<any> {
   return res.json();
 }
 
+export async function getGitHubSyncStatus(): Promise<{ configured: boolean }> {
+  const res = await fetch(`${API_BASE}/backup/github/status`);
+  if (!res.ok) return { configured: false };
+  return res.json();
+}
+
+export async function syncToGitHubGist(token?: string): Promise<{ success: boolean; gistId: string; updatedAt: string; url: string }> {
+  const res = await fetch(`${API_BASE}/backup/github/sync`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to sync to GitHub');
+  return data;
+}
+
+export async function pullFromGitHubGist(token?: string): Promise<{ success: boolean; result: any; updatedAt: string }> {
+  const res = await fetch(`${API_BASE}/backup/github/pull`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to pull from GitHub');
+  return data;
+}
+
 export function getProxiedMediaUrl(url: string): string {
   if (!url) return '';
   // If already proxied or relative

@@ -181,6 +181,34 @@ app.post('/api/backup/import', async (req, res) => {
   }
 });
 
+// 7b. GitHub Gist Cloud Sync
+app.get('/api/backup/github/status', (req, res) => {
+  const hasToken = Boolean(process.env.GITHUB_TOKEN);
+  res.json({ configured: hasToken });
+});
+
+app.post('/api/backup/github/sync', async (req, res) => {
+  try {
+    const { token } = req.body || {};
+    const result = await storage.syncToGitHub(token);
+    res.json(result);
+  } catch (err) {
+    console.error('GitHub sync error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/backup/github/pull', async (req, res) => {
+  try {
+    const { token } = req.body || {};
+    const result = await storage.pullFromGitHub(token);
+    res.json(result);
+  } catch (err) {
+    console.error('GitHub pull error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 8. Media Stream Proxy
 app.get('/api/proxy/media', proxyMedia);
 
