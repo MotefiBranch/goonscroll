@@ -11,11 +11,11 @@ if (!token) {
 try {
   execSync('git add .', { stdio: 'inherit' });
   try {
-    execSync('git commit -m "Fix Danbooru CDN 403: use compliant client User-Agent instead of browser impersonation"', { stdio: 'inherit' });
+    execSync('git commit -m "Handle Danbooru ugoira zip animations and sample media variants"', { stdio: 'inherit' });
   } catch (e) {}
   execSync('git pull --rebase origin main', { stdio: 'inherit' });
   execSync('git push origin main', { stdio: 'inherit' });
-  console.log('✔ Successfully pushed Danbooru CDN User-Agent fix to https://github.com/lalaliwe/goonscroll');
+  console.log('✔ Successfully pushed Danbooru ugoira/media fix to https://github.com/lalaliwe/goonscroll');
 } catch (err) {
   console.error('Git error:', err.message);
   process.exit(1);

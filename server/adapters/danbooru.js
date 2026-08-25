@@ -39,11 +39,33 @@ export async function fetchDanbooru({ tags = '', page = 1, limit = 40, blacklist
     if (!Array.isArray(data)) return [];
 
     const items = data
-      .filter(post => post.file_url || post.large_file_url)
+      .filter(post => post.file_url || post.large_file_url || post.media_asset?.variants?.length)
       .map(post => {
-        const mediaUrl = post.file_url || post.large_file_url;
-        const previewUrl = post.preview_file_url || mediaUrl;
-        const type = detectMediaType(mediaUrl);
+        let mediaUrl = post.large_file_url || post.file_url;
+        let type = detectMediaType(mediaUrl);
+
+        // Handle Danbooru Ugoira / Zip animations -> use webm/mp4 sample variant
+        if (post.file_ext === 'zip' || (mediaUrl && mediaUrl.endsWith('.zip'))) {
+          const videoVariant = post.media_asset?.variants?.find(v => v.file_ext === 'webm' || v.file_ext === 'mp4');
+          if (videoVariant) {
+            mediaUrl = videoVariant.url;
+            type = 'video';
+          } else if (post.large_file_url && !post.large_file_url.endsWith('.zip')) {
+            mediaUrl = post.large_file_url;
+            type = detectMediaType(mediaUrl);
+          }
+        }
+
+        // Handle unrendered/missing mediaUrl -> use sample or 720p variant
+        if (!mediaUrl || mediaUrl.endsWith('.zip')) {
+          const sampleVariant = post.media_asset?.variants?.find(v => v.type === 'sample' || v.type === '720x720' || v.type === 'original');
+          if (sampleVariant) {
+            mediaUrl = sampleVariant.url;
+            type = detectMediaType(mediaUrl);
+          }
+        }
+
+        const previewUrl = post.preview_file_url || post.media_asset?.variants?.find(v => v.type === '360x360' || v.type === '180x180')?.url || mediaUrl;
 
         const generalTags = (post.tag_string_general || '').trim().split(/\s+/).filter(Boolean);
         const artistTags = (post.tag_string_artist || '').trim().split(/\s+/).filter(Boolean);
