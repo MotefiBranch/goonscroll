@@ -26,19 +26,13 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
     setError(false);
   }, [url]);
 
-  // Multi-tier fallback pipeline:
-  // 1. Proxied full media
-  // 2. Proxied thumbnail / sample
-  // 3. Direct unproxied full media (bypasses server proxy if blocked by CDN)
-  // 4. Direct unproxied preview
+  // Multi-tier fallback pipeline (all proxied through GoonScroll server with proper Referer & User-Agent):
   const candidates = [
     getProxiedMediaUrl(url),
-    previewUrl ? getProxiedMediaUrl(previewUrl) : null,
-    url,
-    previewUrl || null,
+    previewUrl && previewUrl !== url ? getProxiedMediaUrl(previewUrl) : null,
   ].filter(Boolean) as string[];
 
-  const currentSrc = candidates[srcIndex] || url;
+  const currentSrc = candidates[srcIndex] || getProxiedMediaUrl(url);
   const thumbSrc = previewUrl ? getProxiedMediaUrl(previewUrl) : currentSrc;
 
   const handleImageError = () => {

@@ -11,11 +11,11 @@ if (!token) {
 try {
   execSync('git add .', { stdio: 'inherit' });
   try {
-    execSync('git commit -m "Fix React viewer state reset per slide and add key props to MediaItem"', { stdio: 'inherit' });
+    execSync('git commit -m "Add server-level Danbooru sample variant candidate generation and proxy-only fallback pipeline"', { stdio: 'inherit' });
   } catch (e) {}
   execSync('git pull --rebase origin main', { stdio: 'inherit' });
   execSync('git push origin main', { stdio: 'inherit' });
-  console.log('✔ Successfully pushed React viewer state lifecycle fix to https://github.com/lalaliwe/goonscroll');
+  console.log('✔ Successfully pushed Danbooru proxy candidate fix to https://github.com/lalaliwe/goonscroll');
 } catch (err) {
   console.error('Git error:', err.message);
   process.exit(1);

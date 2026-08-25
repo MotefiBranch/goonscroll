@@ -71,6 +71,28 @@ function fetchRemoteStream(targetUrl, forwardHeaders, callback, attempt = 0, ini
       } else {
         candidates = [targetUrl];
       }
+    } else if (targetUrl.includes('donmai.us')) {
+      const match = cleanUrl.match(/\/(original|sample|720x720|360x360|180x180)\/([^\/]+)\/([^\/]+)\/([^\.\/]+)/);
+      if (match) {
+        const p1 = match[2];
+        const p2 = match[3];
+        const rawHash = match[4].replace(/^sample-/, '');
+        candidates = Array.from(new Set([
+          targetUrl,
+          `https://cdn.donmai.us/sample/${p1}/${p2}/sample-${rawHash}.jpg`,
+          `https://cdn.donmai.us/sample/${p1}/${p2}/sample-${rawHash}.webp`,
+          `https://cdn.donmai.us/sample/${p1}/${p2}/sample-${rawHash}.webm`,
+          `https://cdn.donmai.us/720x720/${p1}/${p2}/${rawHash}.webp`,
+          `https://cdn.donmai.us/360x360/${p1}/${p2}/${rawHash}.jpg`,
+          `https://cdn.donmai.us/original/${p1}/${p2}/${rawHash}.jpg`,
+          `https://cdn.donmai.us/original/${p1}/${p2}/${rawHash}.png`,
+          `https://cdn.donmai.us/original/${p1}/${p2}/${rawHash}.gif`,
+          `https://cdn.donmai.us/original/${p1}/${p2}/${rawHash}.mp4`,
+          `https://cdn.donmai.us/180x180/${p1}/${p2}/${rawHash}.jpg`,
+        ]));
+      } else {
+        candidates = [targetUrl];
+      }
     } else if (targetUrl.includes('/images/')) {
       const basePath = cleanUrl.substring(0, cleanUrl.lastIndexOf('.'));
       const fallbackExtensions = ['.jpeg', '.png', '.jpg', '.gif', '.mp4', '.webm'];
