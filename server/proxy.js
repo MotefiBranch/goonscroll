@@ -16,12 +16,16 @@ function fetchRemoteStream(targetUrl, forwardHeaders, callback, attempt = 0, ini
   const client = parsedUrl.protocol === 'https:' ? https : http;
 
   let referer = `${parsedUrl.protocol}//${parsedUrl.host}/`;
+  let userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
   if (parsedUrl.host.includes('rule34.xxx')) {
     referer = 'https://rule34.xxx/';
   } else if (parsedUrl.host.includes('e621.net')) {
     referer = 'https://e621.net/';
+    userAgent = 'GoonScroll/1.0 (by GoonScrollUser on e621)';
   } else if (parsedUrl.host.includes('danbooru.donmai.us') || parsedUrl.host.includes('donmai.us')) {
     referer = 'https://danbooru.donmai.us/';
+    userAgent = 'GoonScroll/1.0 (Danbooru Client; https://github.com/lalaliwe/goonscroll)';
   } else if (parsedUrl.host.includes('yande.re')) {
     referer = 'https://yande.re/';
   } else if (parsedUrl.host.includes('konachan.net') || parsedUrl.host.includes('konachan.com')) {
@@ -32,7 +36,7 @@ function fetchRemoteStream(targetUrl, forwardHeaders, callback, attempt = 0, ini
 
   const headers = {
     ...forwardHeaders,
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'User-Agent': userAgent,
     'Referer': referer,
     'Accept': '*/*',
   };
