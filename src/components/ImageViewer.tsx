@@ -16,18 +16,27 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
   fitMode,
 }) => {
   const [loaded, setLoaded] = useState(false);
-  const [failedMain, setFailedMain] = useState(false);
+  const [srcIndex, setSrcIndex] = useState(0);
   const [error, setError] = useState(false);
 
-  const mediaSrc = getProxiedMediaUrl(url);
-  const thumbSrc = previewUrl ? getProxiedMediaUrl(previewUrl) : mediaSrc;
+  // Multi-tier fallback pipeline:
+  // 1. Proxied full media
+  // 2. Proxied thumbnail / sample
+  // 3. Direct unproxied full media (bypasses server proxy if blocked by CDN)
+  // 4. Direct unproxied preview
+  const candidates = [
+    getProxiedMediaUrl(url),
+    previewUrl ? getProxiedMediaUrl(previewUrl) : null,
+    url,
+    previewUrl || null,
+  ].filter(Boolean) as string[];
 
-  // Use thumbSrc as fallback if mediaSrc fails
-  const currentSrc = failedMain ? thumbSrc : mediaSrc;
+  const currentSrc = candidates[srcIndex] || url;
+  const thumbSrc = previewUrl ? getProxiedMediaUrl(previewUrl) : currentSrc;
 
   const handleImageError = () => {
-    if (!failedMain && thumbSrc && thumbSrc !== mediaSrc) {
-      setFailedMain(true);
+    if (srcIndex < candidates.length - 1) {
+      setSrcIndex(prev => prev + 1);
     } else {
       setError(true);
     }
@@ -40,19 +49,24 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
         <img
           src={thumbSrc}
           alt=""
+          referrerPolicy="no-referrer"
           className={`absolute inset-0 w-full h-full ${
             fitMode === 'cover' ? 'object-cover' : 'object-contain'
           } blur-md opacity-40 transition-opacity`}
         />
       )}
 
-      {/* Main Image with fallback */}
+      {/* Main Image with multi-tier fallback */}
       <img
         src={currentSrc}
         alt={altText}
         loading="eager"
         decoding="async"
-        onLoad={() => setLoaded(true)}
+        referrerPolicy="no-referrer"
+        onLoad={() => {
+          setLoaded(true);
+          setError(false);
+        }}
         onError={handleImageError}
         className={`w-full h-full ${
           fitMode === 'cover' ? 'object-cover' : 'object-contain'

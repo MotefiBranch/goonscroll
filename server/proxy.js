@@ -20,12 +20,14 @@ function fetchRemoteStream(targetUrl, forwardHeaders, callback, attempt = 0, ini
     referer = 'https://rule34.xxx/';
   } else if (parsedUrl.host.includes('e621.net')) {
     referer = 'https://e621.net/';
-  } else if (parsedUrl.host.includes('danbooru.donmai.us')) {
+  } else if (parsedUrl.host.includes('danbooru.donmai.us') || parsedUrl.host.includes('donmai.us')) {
     referer = 'https://danbooru.donmai.us/';
   } else if (parsedUrl.host.includes('yande.re')) {
     referer = 'https://yande.re/';
-  } else if (parsedUrl.host.includes('konachan.net')) {
-    referer = 'https://konachan.net/';
+  } else if (parsedUrl.host.includes('konachan.net') || parsedUrl.host.includes('konachan.com')) {
+    referer = 'https://konachan.com/';
+  } else if (parsedUrl.host.includes('paheal.net') || parsedUrl.host.includes('paheal-cdn.net')) {
+    referer = 'https://rule34.paheal.net/';
   }
 
   const headers = {

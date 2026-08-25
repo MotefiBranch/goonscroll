@@ -26,8 +26,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [showPlayIcon, setShowPlayIcon] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isBuffering, setIsBuffering] = useState(true);
+  const [useDirectFallback, setUseDirectFallback] = useState(false);
 
   const proxiedSrc = getProxiedMediaUrl(url);
+  const currentSrc = useDirectFallback ? url : proxiedSrc;
 
   // Sync active state with playback
   useEffect(() => {
@@ -48,7 +50,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           })
           .catch(err => {
             console.warn('Autoplay restricted, retrying muted:', err.message);
-            // Browser autoplay policy workaround: retry muted
             video.muted = true;
             video.play()
               .then(() => {
@@ -65,15 +66,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       video.pause();
       setIsPlaying(false);
     }
-  }, [isActive, isMuted, volume]);
-
-  // Sync mute and volume changes dynamically
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    video.muted = isMuted;
-    video.volume = isMuted ? 0 : volume;
-  }, [isMuted, volume]);
+  }, [isActive, isMuted, volume, currentSrc]);
 
   const togglePlayPause = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -110,8 +103,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   };
 
   const handleVideoError = () => {
-    console.warn('Video element error for URL, calling fallback:', url);
-    onErrorFallback?.();
+    if (!useDirectFallback && url !== currentSrc) {
+      console.warn('Proxy video stream failed, trying direct unproxied stream:', url);
+      setUseDirectFallback(true);
+    } else {
+      console.warn('Video element error for URL, calling fallback:', url);
+      onErrorFallback?.();
+    }
   };
 
   return (
@@ -121,7 +119,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     >
       <video
         ref={videoRef}
-        src={proxiedSrc}
+        src={currentSrc}
         poster={previewUrl ? getProxiedMediaUrl(previewUrl) : undefined}
         loop
         autoPlay
