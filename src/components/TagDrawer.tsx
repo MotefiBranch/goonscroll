@@ -58,16 +58,20 @@ export const TagDrawer: React.FC<TagDrawerProps> = ({ item, isOpen, onClose }) =
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-4 border-b border-white/10 flex items-center justify-between">
+        <div
+          className="px-4 pb-4 border-b border-white/10 flex items-center justify-between"
+          style={{ paddingTop: 'max(16px, env(safe-area-inset-top, 0px))' }}
+        >
           <div className="flex items-center space-x-2">
             <Tag size={18} className="text-blue-400" />
             <h2 className="text-base font-bold text-white">Post Tags & Info</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
+            className="p-2 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-colors active:scale-90"
+            aria-label="Close"
           >
-            <X size={20} />
+            <X size={22} />
           </button>
         </div>
 

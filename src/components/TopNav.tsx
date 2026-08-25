@@ -82,7 +82,10 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenSettings }) => {
   };
 
   return (
-    <header className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-3 py-2.5 bg-gradient-to-b from-black/80 via-black/40 to-transparent pointer-events-auto select-none">
+    <header
+      className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-3 pb-2.5 bg-gradient-to-b from-black/90 via-black/50 to-transparent pointer-events-auto select-none"
+      style={{ paddingTop: 'max(10px, env(safe-area-inset-top, 0px))' }}
+    >
       {/* Source Selector Dropdown */}
       <div className="flex items-center space-x-2">
         <select

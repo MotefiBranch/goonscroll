@@ -69,7 +69,10 @@ export const ActionBar: React.FC<ActionBarProps> = ({ item, onOpenTagDrawer }) =
   };
 
   return (
-    <div className="absolute right-3 bottom-16 sm:bottom-20 z-30 flex flex-col items-center space-y-3.5 select-none pointer-events-auto">
+    <div
+      className="absolute right-3 z-30 flex flex-col items-center space-y-3.5 select-none pointer-events-auto"
+      style={{ bottom: 'max(4rem, calc(3.5rem + env(safe-area-inset-bottom, 0px)))' }}
+    >
       {/* 1. Source Icon / Link */}
       <a
         href={item.sourceUrl}
