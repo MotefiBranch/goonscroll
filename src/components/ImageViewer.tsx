@@ -76,16 +76,28 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
       />
 
       {error && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-400 bg-zinc-900/80 p-4 text-center z-20">
-          <span className="text-2xl mb-2">⚠️</span>
-          <p className="text-sm">Unable to load image.</p>
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-400 bg-zinc-900/90 p-4 text-center z-20 space-y-2">
+          <span className="text-3xl">⚠️</span>
+          <p className="text-sm font-medium text-zinc-300">Unable to load image</p>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setError(false);
+              setSrcIndex(0);
+              setLoaded(false);
+            }}
+            className="mt-1 px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-full active:scale-95 transition-all shadow pointer-events-auto"
+          >
+            🔄 Tap to Retry
+          </button>
           <a
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-2 text-xs text-blue-400 underline"
+            onClick={e => e.stopPropagation()}
+            className="text-[11px] text-zinc-400 hover:text-blue-400 underline pt-1 pointer-events-auto"
           >
-            Open original URL
+            Open original post URL
           </a>
         </div>
       )}

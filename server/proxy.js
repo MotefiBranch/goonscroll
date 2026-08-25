@@ -2,8 +2,20 @@ import http from 'http';
 import https from 'https';
 import { URL } from 'url';
 
+// In-memory LRU media buffer cache (up to 80 items) for instant sub-millisecond response & zero upstream rate limiting
+const mediaCache = new Map();
+const MAX_CACHE_ITEMS = 80;
+
+function setCachedMedia(url, headers, buffer) {
+  if (mediaCache.size >= MAX_CACHE_ITEMS) {
+    const oldestKey = mediaCache.keys().next().value;
+    mediaCache.delete(oldestKey);
+  }
+  mediaCache.set(url, { headers, buffer, timestamp: Date.now() });
+}
+
 /**
- * Helper to fetch a URL with redirection, multi-host resolution, and extension fallback.
+ * Helper to fetch a URL with redirection, multi-host resolution, and candidate fallback.
  */
 function fetchRemoteStream(targetUrl, forwardHeaders, callback, attempt = 0, initialCandidates = null) {
   let parsedUrl;
@@ -108,11 +120,15 @@ function fetchRemoteStream(targetUrl, forwardHeaders, callback, attempt = 0, ini
       return fetchRemoteStream(proxyRes.headers.location, forwardHeaders, callback, attempt, candidates);
     }
 
-    // If 404 or 403 or server error, try next candidate in sequence
+    // If 404 or 403 or rate-limit, try next candidate with slight backoff
     if ((proxyRes.statusCode >= 400) && attempt + 1 < candidates.length) {
       proxyRes.resume();
       const nextCandidate = candidates[attempt + 1];
-      return fetchRemoteStream(nextCandidate, forwardHeaders, callback, attempt + 1, candidates);
+      const backoffDelay = (proxyRes.statusCode === 429 || proxyRes.statusCode === 403) ? 150 : 0;
+      setTimeout(() => {
+        fetchRemoteStream(nextCandidate, forwardHeaders, callback, attempt + 1, candidates);
+      }, backoffDelay);
+      return;
     }
 
     callback(null, proxyRes);
@@ -137,6 +153,14 @@ export async function proxyMedia(req, res) {
   const targetUrl = req.query.url;
   if (!targetUrl) {
     return res.status(400).send('Missing url parameter');
+  }
+
+  // Check in-memory LRU cache for instant delivery (images only without range)
+  if (!req.headers.range && mediaCache.has(targetUrl)) {
+    const cached = mediaCache.get(targetUrl);
+    Object.entries(cached.headers).forEach(([k, v]) => res.setHeader(k, v));
+    res.setHeader('X-Proxy-Cache', 'HIT');
+    return res.status(200).send(cached.buffer);
   }
 
   const forwardHeaders = {};
@@ -164,9 +188,11 @@ export async function proxyMedia(req, res) {
       'etag',
     ];
 
+    const capturedHeaders = {};
     headersToForward.forEach(header => {
       if (proxyRes.headers[header]) {
         res.setHeader(header, proxyRes.headers[header]);
+        capturedHeaders[header] = proxyRes.headers[header];
       }
     });
 
@@ -174,6 +200,24 @@ export async function proxyMedia(req, res) {
     res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Range');
     res.setHeader('Cache-Control', 'public, max-age=86400');
+
+    // If cacheable non-range image under 15MB, buffer and cache
+    const contentType = proxyRes.headers['content-type'] || '';
+    const contentLength = parseInt(proxyRes.headers['content-length'] || '0', 10);
+    const isImage = contentType.startsWith('image/');
+
+    if (!req.headers.range && isImage && proxyRes.statusCode === 200 && contentLength < 15 * 1024 * 1024) {
+      const chunks = [];
+      proxyRes.on('data', chunk => chunks.push(chunk));
+      proxyRes.on('end', () => {
+        const fullBuffer = Buffer.concat(chunks);
+        setCachedMedia(targetUrl, capturedHeaders, fullBuffer);
+        if (!res.writableEnded) {
+          res.end(fullBuffer);
+        }
+      });
+      return;
+    }
 
     proxyRes.pipe(res);
   });
