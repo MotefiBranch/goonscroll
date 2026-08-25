@@ -10,9 +10,9 @@ if (!token) {
 
 try {
   execSync('git add .', { stdio: 'inherit' });
-  execSync('git commit -m "Fix mobile PWA safe-area-inset top clipping on search bar and tag drawer close button"', { stdio: 'inherit' });
+  execSync('git commit -m "Update GitHub Cloud Sync to use private repo contents API (fixes 404)"', { stdio: 'inherit' });
   execSync('git push origin main', { stdio: 'inherit' });
-  console.log('✔ Successfully pushed PWA safe-area fix to https://github.com/lalaliwe/goonscroll');
+  console.log('✔ Successfully pushed GitHub Cloud Sync fix to https://github.com/lalaliwe/goonscroll');
 } catch (err) {
   console.error('Git error:', err.message);
   process.exit(1);

@@ -369,7 +369,7 @@ class StorageEngine {
     };
   }
 
-  /* --- GitHub Gist Cloud Sync --- */
+  /* --- GitHub Cloud Sync (Repository & Gist) --- */
 
   async syncToGitHub(customToken = null) {
     const token = customToken || process.env.GITHUB_TOKEN;
@@ -380,7 +380,8 @@ class StorageEngine {
     const backupData = this.exportBackup();
     const backupJsonString = JSON.stringify(backupData, null, 2);
 
-    const listRes = await fetch('https://api.github.com/gists', {
+    // 1. Get authenticated username
+    const userRes = await fetch('https://api.github.com/user', {
       headers: {
         'Authorization': `token ${token}`,
         'User-Agent': 'GoonScroll-Sync',
@@ -388,63 +389,58 @@ class StorageEngine {
       }
     });
 
-    if (!listRes.ok) {
-      const errBody = await listRes.json().catch(() => ({}));
-      throw new Error(errBody.message || `GitHub API error: ${listRes.status}`);
+    if (!userRes.ok) {
+      const errBody = await userRes.json().catch(() => ({}));
+      throw new Error(errBody.message || `GitHub Auth Error (${userRes.status})`);
     }
 
-    const gists = await listRes.json();
-    const existingGist = gists.find(g => g.files && g.files['goonscroll_backup.json']);
+    const user = await userRes.json();
+    const owner = user.login;
+    const repo = 'goonscroll';
+    const filePath = 'sync/backup.json';
 
-    let resultGist;
-    if (existingGist) {
-      const updateRes = await fetch(`https://api.github.com/gists/${existingGist.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `token ${token}`,
-          'User-Agent': 'GoonScroll-Sync',
-          'Content-Type': 'application/json',
-          'Accept': 'application/vnd.github.v3+json',
-        },
-        body: JSON.stringify({
-          description: 'GoonScroll Private Cloud Backup',
-          files: {
-            'goonscroll_backup.json': {
-              content: backupJsonString,
-            }
-          }
-        })
-      });
-      if (!updateRes.ok) throw new Error(`Failed to update Gist: ${updateRes.status}`);
-      resultGist = await updateRes.json();
-    } else {
-      const createRes = await fetch('https://api.github.com/gists', {
-        method: 'POST',
-        headers: {
-          'Authorization': `token ${token}`,
-          'User-Agent': 'GoonScroll-Sync',
-          'Content-Type': 'application/json',
-          'Accept': 'application/vnd.github.v3+json',
-        },
-        body: JSON.stringify({
-          description: 'GoonScroll Private Cloud Backup',
-          public: false,
-          files: {
-            'goonscroll_backup.json': {
-              content: backupJsonString,
-            }
-          }
-        })
-      });
-      if (!createRes.ok) throw new Error(`Failed to create Gist: ${createRes.status}`);
-      resultGist = await createRes.json();
+    // 2. Check for existing file SHA in private repository
+    let sha = null;
+    const getRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`, {
+      headers: {
+        'Authorization': `token ${token}`,
+        'User-Agent': 'GoonScroll-Sync',
+        'Accept': 'application/vnd.github.v3+json',
+      }
+    });
+
+    if (getRes.ok) {
+      const data = await getRes.json();
+      sha = data.sha;
     }
 
+    // 3. Commit/update sync/backup.json in the private repo
+    const contentBase64 = Buffer.from(backupJsonString, 'utf-8').toString('base64');
+    const putRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${token}`,
+        'User-Agent': 'GoonScroll-Sync',
+        'Content-Type': 'application/json',
+        'Accept': 'application/vnd.github.v3+json',
+      },
+      body: JSON.stringify({
+        message: '☁️ GoonScroll Cloud Sync: automated configuration backup',
+        content: contentBase64,
+        sha: sha || undefined,
+      })
+    });
+
+    if (!putRes.ok) {
+      const errData = await putRes.json().catch(() => ({}));
+      throw new Error(errData.message || `Failed to sync backup to repository (${putRes.status})`);
+    }
+
+    const putData = await putRes.json();
     return {
       success: true,
-      gistId: resultGist.id,
-      updatedAt: resultGist.updated_at,
-      url: resultGist.html_url,
+      updatedAt: new Date().toISOString(),
+      url: `https://github.com/${owner}/${repo}/blob/main/${filePath}`,
     };
   }
 
@@ -454,7 +450,8 @@ class StorageEngine {
       throw new Error('No GitHub Token configured in .env');
     }
 
-    const listRes = await fetch('https://api.github.com/gists', {
+    // 1. Get authenticated username
+    const userRes = await fetch('https://api.github.com/user', {
       headers: {
         'Authorization': `token ${token}`,
         'User-Agent': 'GoonScroll-Sync',
@@ -462,37 +459,38 @@ class StorageEngine {
       }
     });
 
-    if (!listRes.ok) {
-      const errBody = await listRes.json().catch(() => ({}));
-      throw new Error(errBody.message || `GitHub API error: ${listRes.status}`);
+    if (!userRes.ok) {
+      const errBody = await userRes.json().catch(() => ({}));
+      throw new Error(errBody.message || `GitHub Auth Error (${userRes.status})`);
     }
 
-    const gists = await listRes.json();
-    const existingGist = gists.find(g => g.files && g.files['goonscroll_backup.json']);
-    if (!existingGist) {
-      throw new Error('No GoonScroll backup Gist found in your GitHub account');
+    const user = await userRes.json();
+    const owner = user.login;
+    const repo = 'goonscroll';
+    const filePath = 'sync/backup.json';
+
+    // 2. Fetch backup from private repository
+    const getRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`, {
+      headers: {
+        'Authorization': `token ${token}`,
+        'User-Agent': 'GoonScroll-Sync',
+        'Accept': 'application/vnd.github.v3+json',
+      }
+    });
+
+    if (!getRes.ok) {
+      throw new Error(`No cloud backup found in ${owner}/${repo}/${filePath}. Tap "Sync to GitHub" first to create one.`);
     }
 
-    const fileMeta = existingGist.files['goonscroll_backup.json'];
-    let content = fileMeta.content;
-    if (!content && fileMeta.raw_url) {
-      const rawRes = await fetch(fileMeta.raw_url, {
-        headers: {
-          'Authorization': `token ${token}`,
-          'User-Agent': 'GoonScroll-Sync',
-        }
-      });
-      content = await rawRes.text();
-    }
-
+    const fileData = await getRes.json();
+    const content = Buffer.from(fileData.content, 'base64').toString('utf-8');
     const parsedBackup = JSON.parse(content);
     const imported = this.importBackup(parsedBackup);
 
     return {
       success: true,
       result: imported,
-      gistId: existingGist.id,
-      updatedAt: existingGist.updated_at,
+      updatedAt: new Date().toISOString(),
     };
   }
 }

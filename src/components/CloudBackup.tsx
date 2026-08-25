@@ -60,7 +60,7 @@ export const CloudBackup: React.FC = () => {
       const res = await syncToGitHubGist(customToken || undefined);
       if (res.success) {
         setLastSyncUrl(res.url);
-        showToast({ text: '☁️ Synced blacklists & favorites to private GitHub Gist!', duration: 4000 });
+        showToast({ text: '☁️ Synced blacklists & favorites to your private GitHub repository!', duration: 4000 });
       }
     } catch (err: any) {
       showToast({ text: `Sync failed: ${err.message}`, duration: 5000 });
@@ -87,7 +87,7 @@ export const CloudBackup: React.FC = () => {
 
   return (
     <div className="space-y-4 select-none">
-      {/* 1. GitHub Gist Cloud Sync */}
+      {/* 1. GitHub Cloud Sync */}
       <div className="p-4 bg-zinc-900/90 border border-purple-500/30 rounded-xl space-y-3 shadow-md">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-purple-300 flex items-center space-x-2">
@@ -111,7 +111,7 @@ export const CloudBackup: React.FC = () => {
         </div>
 
         <p className="text-xs text-zinc-400 leading-relaxed">
-          Sync all your favorite tags, blacklists, and saved posts between your PC and Android Termux instance via a private GitHub Gist.
+          Sync all your favorite tags, blacklists, and saved posts between your PC and Android Termux instance via your private GitHub repository.
         </p>
 
         {(!hasToken || showTokenInput) && (
@@ -134,7 +134,7 @@ export const CloudBackup: React.FC = () => {
             className="py-2.5 px-4 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl flex items-center justify-center space-x-2 transition-all active:scale-95 shadow"
           >
             <Cloud size={15} className={isSyncing ? 'animate-bounce' : ''} />
-            <span>{isSyncing ? 'Uploading to GitHub...' : '☁️ Sync to GitHub Gist'}</span>
+            <span>{isSyncing ? 'Uploading to GitHub...' : '☁️ Sync to GitHub'}</span>
           </button>
 
           {/* Pull from GitHub */}
