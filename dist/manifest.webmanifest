@@ -1,0 +1,18 @@
+{
+  "name": "GoonScroll",
+  "short_name": "GoonScroll",
+  "description": "Infinite adult media scroller with multi-source booru aggregation and tag blacklisting",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#101828",
+  "theme_color": "#101828",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
