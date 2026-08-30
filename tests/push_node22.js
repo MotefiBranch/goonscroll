@@ -11,13 +11,13 @@ if (!token) {
 try {
   execSync('git add .', { stdio: 'inherit' });
   try {
-    execSync('git commit -m "Add GitHub Actions automated iOS IPA builder workflow"', { stdio: 'inherit' });
+    execSync('git commit -m "Update GitHub Actions runner to Node.js 22 for Capacitor 8 compatibility"', { stdio: 'inherit' });
   } catch (e) {}
   
   const remoteUrl = `https://lalaliwe:${token}@github.com/lalaliwe/goonscroll.git`;
   execSync(`git pull --rebase "${remoteUrl}" main`, { stdio: 'inherit' });
   execSync(`git push "${remoteUrl}" main`, { stdio: 'inherit' });
-  console.log('✔ Successfully pushed GitHub Actions workflow to https://github.com/lalaliwe/goonscroll');
+  console.log('✔ Successfully pushed Node 22 fix to https://github.com/lalaliwe/goonscroll');
 } catch (err) {
   console.error('Git error:', err.message);
   process.exit(1);
