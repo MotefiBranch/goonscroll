@@ -11,13 +11,13 @@ if (!token) {
 try {
   execSync('git add .', { stdio: 'inherit' });
   try {
-    execSync('git commit -m "Remove incompatible status-bar plugin to fix Xcode Swift compilation"', { stdio: 'inherit' });
+    execSync('git commit -m "Bundle client-side Booru adapter engine for standalone iOS execution without server"', { stdio: 'inherit' });
   } catch (e) {}
   
   const remoteUrl = `https://lalaliwe:${token}@github.com/lalaliwe/goonscroll.git`;
   execSync(`git pull --rebase "${remoteUrl}" main`, { stdio: 'inherit' });
   execSync(`git push "${remoteUrl}" main`, { stdio: 'inherit' });
-  console.log('✔ Successfully pushed clean iOS project to https://github.com/lalaliwe/goonscroll');
+  console.log('✔ Successfully pushed standalone booru client to https://github.com/lalaliwe/goonscroll');
 } catch (err) {
   console.error('Git error:', err.message);
   process.exit(1);

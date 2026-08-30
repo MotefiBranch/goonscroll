@@ -1,6 +1,8 @@
 import { FeedItem, SourceOption, AppSettings } from '../types/feed';
 import { nativeStorage } from '../services/nativeStorage';
 import { nativePushToGitHub, nativePullFromGitHub } from '../services/nativeSync';
+// @ts-ignore
+import { getFeed, getAutocomplete } from '../../server/adapters/index.js';
 
 const API_BASE = '/api';
 
@@ -34,15 +36,48 @@ export async function fetchFeed(params: {
   page?: number;
   limit?: number;
 }): Promise<{ items: FeedItem[]; page: number; count: number }> {
-  const query = new URLSearchParams();
-  query.set('source', params.source);
-  if (params.tags) query.set('tags', params.tags);
-  if (params.page) query.set('page', params.page.toString());
-  if (params.limit) query.set('limit', params.limit.toString());
+  // 1. Try server endpoint if backend is live
+  try {
+    const query = new URLSearchParams();
+    query.set('source', params.source);
+    if (params.tags) query.set('tags', params.tags);
+    if (params.page) query.set('page', params.page.toString());
+    if (params.limit) query.set('limit', params.limit.toString());
 
-  const res = await fetch(`${API_BASE}/feed?${query.toString()}`);
-  if (!res.ok) throw new Error(`Feed fetch failed: ${res.status}`);
-  return res.json();
+    const res = await fetch(`${API_BASE}/feed?${query.toString()}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.items && data.items.length > 0) {
+        return data;
+      }
+    }
+  } catch (e) {}
+
+  // 2. Standalone Client-Side Booru Engine (for native iOS app execution)
+  try {
+    const settings = await fetchSettings();
+    const globalBlacklist = settings.blacklist?.global || [];
+    const sourceBlacklist = settings.blacklist?.bySource?.[params.source] || [];
+    const effectiveBlacklist = Array.from(new Set([...globalBlacklist, ...sourceBlacklist]));
+
+    const rawItems = await getFeed({
+      source: params.source,
+      tags: params.tags || '',
+      page: params.page || 1,
+      limit: params.limit || 40,
+      blacklist: effectiveBlacklist,
+      credentials: settings.credentials || {},
+    });
+
+    return {
+      items: (rawItems || []) as FeedItem[],
+      page: params.page || 1,
+      count: (rawItems || []).length,
+    };
+  } catch (err: any) {
+    console.error('Client-side booru fetch error:', err);
+    return { items: [], page: params.page || 1, count: 0 };
+  }
 }
 
 export async function fetchAutocomplete(source: string, query: string): Promise<string[]> {
@@ -54,6 +89,10 @@ export async function fetchAutocomplete(source: string, query: string): Promise<
       const data = await res.json();
       return data.suggestions || [];
     }
+  } catch (e) {}
+
+  try {
+    return await getAutocomplete({ source, query });
   } catch (e) {}
   return [];
 }
@@ -271,6 +310,12 @@ export async function pullFromGitHubGist(token?: string): Promise<{ success: boo
 
 export function getProxiedMediaUrl(url: string, nonce?: number): string {
   if (!url) return '';
+  // In native Capacitor iOS mode, media loads directly via native iOS network stack!
+  const isNative = typeof window !== 'undefined' && (window.location.protocol === 'ionic:' || window.location.protocol === 'capacitor:');
+  if (isNative) {
+    return nonce ? `${url}&_t=${nonce}` : url;
+  }
+
   if (url.startsWith('/api/proxy')) {
     return nonce ? `${url}&_t=${nonce}` : url;
   }
