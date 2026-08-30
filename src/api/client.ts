@@ -37,22 +37,26 @@ export async function fetchFeed(params: {
   page?: number;
   limit?: number;
 }): Promise<{ items: FeedItem[]; page: number; count: number }> {
-  // 1. Try server endpoint if backend is live
-  try {
-    const query = new URLSearchParams();
-    query.set('source', params.source);
-    if (params.tags) query.set('tags', params.tags);
-    if (params.page) query.set('page', params.page.toString());
-    if (params.limit) query.set('limit', params.limit.toString());
+  const isNative = typeof window !== 'undefined' && (window.location.protocol === 'ionic:' || window.location.protocol === 'capacitor:');
 
-    const res = await fetch(`${API_BASE}/feed?${query.toString()}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.items && data.items.length > 0) {
-        return data;
+  // 1. If in web browser mode, query the Express backend server
+  if (!isNative) {
+    try {
+      const query = new URLSearchParams();
+      query.set('source', params.source);
+      if (params.tags) query.set('tags', params.tags);
+      if (params.page) query.set('page', params.page.toString());
+      if (params.limit) query.set('limit', params.limit.toString());
+
+      const res = await fetch(`${API_BASE}/feed?${query.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.items && data.items.length > 0) {
+          return data;
+        }
       }
-    }
-  } catch (e) {}
+    } catch (e) {}
+  }
 
   // 2. Standalone Client-Side Booru Engine (for native iOS app execution)
   try {
@@ -61,16 +65,8 @@ export async function fetchFeed(params: {
     const sourceBlacklist = settings.blacklist?.bySource?.[params.source] || [];
     const effectiveBlacklist = Array.from(new Set([...globalBlacklist, ...sourceBlacklist]));
 
-    let rawItems = await getNativeFeed({
-      source: params.source,
-      tags: params.tags || '',
-      page: params.page || 1,
-      limit: params.limit || 40,
-      blacklist: effectiveBlacklist,
-      credentials: settings.credentials || {},
-    });
-
-    if ((!rawItems || rawItems.length === 0) && typeof getFeed === 'function') {
+    let rawItems: FeedItem[] = [];
+    if (typeof getFeed === 'function') {
       try {
         rawItems = await getFeed({
           source: params.source,
@@ -81,6 +77,17 @@ export async function fetchFeed(params: {
           credentials: settings.credentials || {},
         });
       } catch (e) {}
+    }
+
+    if (!rawItems || rawItems.length === 0) {
+      rawItems = await getNativeFeed({
+        source: params.source,
+        tags: params.tags || '',
+        page: params.page || 1,
+        limit: params.limit || 40,
+        blacklist: effectiveBlacklist,
+        credentials: settings.credentials || {},
+      });
     }
 
     return {

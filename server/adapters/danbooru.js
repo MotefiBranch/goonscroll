@@ -19,7 +19,9 @@ export async function fetchDanbooru({ tags = '', page = 1, limit = 40, blacklist
 
   if (isAuthenticated) {
     // Official Danbooru Authentication: HTTP Basic Auth & URL parameters
-    const authString = Buffer.from(`${username}:${apiKey}`).toString('base64');
+    const authString = typeof Buffer !== 'undefined'
+      ? Buffer.from(`${username}:${apiKey}`).toString('base64')
+      : btoa(unescape(encodeURIComponent(`${username}:${apiKey}`)));
     headers['Authorization'] = `Basic ${authString}`;
     url += `&login=${encodeURIComponent(username)}&api_key=${encodeURIComponent(apiKey)}`;
   }

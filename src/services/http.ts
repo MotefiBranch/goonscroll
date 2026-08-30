@@ -1,16 +1,14 @@
 import { Capacitor, CapacitorHttp, HttpOptions } from '@capacitor/core';
 
 export async function universalFetch(url: string, options: any = {}) {
-  // If running natively on iOS / Android, execute via native NSURLSession (CapacitorHttp)
-  if (Capacitor.isNativePlatform()) {
+  // If running natively on iOS / Android and accessing an external https:// API
+  if (Capacitor.isNativePlatform() && (url.startsWith('http://') || url.startsWith('https://'))) {
     try {
       const httpOptions: HttpOptions = {
         url,
         method: options.method || 'GET',
         headers: options.headers || {},
-        data: options.body,
-        // Ensure raw response data is parsed appropriately
-        responseType: options.responseType || 'text',
+        data: options.body ? (typeof options.body === 'string' ? JSON.parse(options.body) : options.body) : undefined,
       };
 
       const res = await CapacitorHttp.request(httpOptions);
@@ -18,6 +16,7 @@ export async function universalFetch(url: string, options: any = {}) {
       return {
         ok: res.status >= 200 && res.status < 300,
         status: res.status,
+        statusText: res.status === 200 ? 'OK' : `HTTP ${res.status}`,
         json: async () => {
           if (typeof res.data === 'string') {
             try {
@@ -43,8 +42,8 @@ export async function universalFetch(url: string, options: any = {}) {
         },
       };
     } catch (err: any) {
-      console.error('CapacitorHttp native request failed:', err.message);
-      throw err;
+      console.warn('Native CapacitorHttp request failed, trying fallback:', err.message);
+      return fetch(url, options);
     }
   }
 

@@ -10,7 +10,9 @@ export async function fetchE621({ tags = '', page = 1, limit = 40, blacklist = [
   };
 
   if (credentials.username && credentials.apiKey) {
-    const authString = Buffer.from(`${credentials.username}:${credentials.apiKey}`).toString('base64');
+    const authString = typeof Buffer !== 'undefined'
+      ? Buffer.from(`${credentials.username}:${credentials.apiKey}`).toString('base64')
+      : btoa(unescape(encodeURIComponent(`${credentials.username}:${credentials.apiKey}`)));
     headers['Authorization'] = `Basic ${authString}`;
   }
 
