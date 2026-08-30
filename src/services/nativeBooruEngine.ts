@@ -1,0 +1,292 @@
+import { universalFetch } from './http';
+import { XMLParser } from 'fast-xml-parser';
+import { FeedItem } from '../types/feed';
+
+const xmlParser = new XMLParser({
+  ignoreAttributes: false,
+  attributeNamePrefix: '',
+});
+
+function detectMediaType(url = ''): 'video' | 'image' | 'gif' {
+  const cleanUrl = url.split('?')[0].toLowerCase();
+  if (cleanUrl.endsWith('.mp4') || cleanUrl.endsWith('.webm') || cleanUrl.endsWith('.mov')) {
+    return 'video';
+  }
+  if (cleanUrl.endsWith('.gif')) {
+    return 'gif';
+  }
+  return 'image';
+}
+
+function normalizeRating(rating = ''): 's' | 'q' | 'e' {
+  const r = (rating || '').toLowerCase();
+  if (r === 'explicit' || r === 'e') return 'e';
+  if (r === 'questionable' || r === 'q') return 'q';
+  if (r === 'safe' || r === 'general' || r === 's' || r === 'g') return 's';
+  return 'e';
+}
+
+function filterOutBlacklisted(items: FeedItem[] = [], blacklist: string[] = []): FeedItem[] {
+  if (!blacklist || blacklist.length === 0) return items;
+  const blacklistSet = new Set(blacklist.map(t => t.toLowerCase().trim()));
+
+  return items.filter(item => {
+    if (!item.tags || !item.tags.all) return true;
+    for (const tag of item.tags.all) {
+      if (blacklistSet.has(tag.toLowerCase().trim())) {
+        return false;
+      }
+    }
+    return true;
+  });
+}
+
+// 1. Danbooru
+export async function fetchNativeDanbooru({ tags = '', page = 1, limit = 30, blacklist = [] as string[], credentials = {} as any }): Promise<FeedItem[]> {
+  const queryList = (tags || '').trim().split(/\s+/).filter(Boolean);
+  const negativeList = (blacklist || []).map(t => `-${t.trim().toLowerCase()}`).filter(Boolean);
+  const combinedTags = [...queryList, ...negativeList.slice(0, 2)].join(' ');
+
+  let apiUrl = `https://danbooru.donmai.us/posts.json?tags=${encodeURIComponent(combinedTags)}&page=${page}&limit=${limit}`;
+  if (credentials.username && credentials.apiKey) {
+    apiUrl += `&login=${encodeURIComponent(credentials.username)}&api_key=${encodeURIComponent(credentials.apiKey)}`;
+  }
+
+  const res = await universalFetch(apiUrl, {
+    headers: {
+      'User-Agent': 'GoonScroll/1.0 (Danbooru Client; https://github.com/lalaliwe/goonscroll)',
+      'Accept': 'application/json',
+    },
+  });
+
+  if (!res.ok) return [];
+  const data = await res.json();
+  if (!Array.isArray(data)) return [];
+
+  const items: FeedItem[] = data.map(post => {
+    const rawTags = (post.tag_string || '').trim().split(/\s+/).filter(Boolean);
+    const isUgoira = post.file_ext === 'zip';
+    const variants = post.media_asset?.variants || [];
+    const webmVariant = variants.find((v: any) => v.file_ext === 'webm' || v.file_ext === 'mp4');
+
+    let mediaUrl = post.file_url || post.large_file_url || post.preview_file_url;
+    let type: 'video' | 'image' | 'gif' = detectMediaType(mediaUrl);
+
+    if (isUgoira && webmVariant) {
+      mediaUrl = webmVariant.url;
+      type = 'video';
+    } else if (post.file_ext === 'webm' || post.file_ext === 'mp4') {
+      type = 'video';
+    } else if (post.file_ext === 'gif') {
+      type = 'gif';
+    }
+
+    return {
+      id: `danbooru_${post.id}`,
+      sourceId: 'danbooru',
+      sourceName: 'Danbooru',
+      sourceUrl: `https://danbooru.donmai.us/posts/${post.id}`,
+      type,
+      mediaUrl,
+      previewUrl: post.preview_file_url || post.large_file_url || mediaUrl,
+      tags: {
+        all: rawTags,
+        general: (post.tag_string_general || '').split(/\s+/).filter(Boolean),
+        artist: (post.tag_string_artist || '').split(/\s+/).filter(Boolean),
+        character: (post.tag_string_character || '').split(/\s+/).filter(Boolean),
+        copyright: (post.tag_string_copyright || '').split(/\s+/).filter(Boolean),
+      },
+      score: post.score || 0,
+      rating: normalizeRating(post.rating),
+      width: post.image_width,
+      height: post.image_height,
+    };
+  });
+
+  return filterOutBlacklisted(items, blacklist);
+}
+
+// 2. Rule34
+export async function fetchNativeRule34({ tags = '', page = 0, limit = 42, blacklist = [] as string[], credentials = {} as any }): Promise<FeedItem[]> {
+  if (credentials.userId && credentials.apiKey) {
+    const encodedTags = encodeURIComponent(tags.trim());
+    const apiUrl = `https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&json=1&tags=${encodedTags}&pid=${page}&limit=${limit}&user_id=${credentials.userId}&api_key=${credentials.apiKey}`;
+    try {
+      const res = await universalFetch(apiUrl, {
+        headers: {
+          'User-Agent': 'GoonScroll/1.0 (Rule34 Client; https://github.com/lalaliwe/goonscroll)',
+        },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          const items: FeedItem[] = data.map((post: any) => {
+            const rawTags = (post.tags || '').trim().split(/\s+/).filter(Boolean);
+            const isVideo = rawTags.includes('video') || rawTags.includes('animated') || (post.file_url && (post.file_url.endsWith('.mp4') || post.file_url.endsWith('.webm')));
+            const mediaUrl = post.file_url || post.sample_url || post.image;
+            return {
+              id: `rule34_${post.id}`,
+              sourceId: 'rule34',
+              sourceName: 'Rule34',
+              sourceUrl: `https://rule34.xxx/index.php?page=post&s=view&id=${post.id}`,
+              type: isVideo ? 'video' : detectMediaType(mediaUrl),
+              mediaUrl,
+              previewUrl: post.preview_url || post.sample_url || mediaUrl,
+              tags: { all: rawTags, general: rawTags },
+              score: parseInt(post.score || '0', 10),
+              rating: normalizeRating(post.rating),
+              width: parseInt(post.width || '0', 10),
+              height: parseInt(post.height || '0', 10),
+            };
+          });
+          return filterOutBlacklisted(items, blacklist);
+        }
+      }
+    } catch (e) {}
+  }
+
+  // Web list parser
+  const cleanTags = tags.trim();
+  const pid = page * 42;
+  const webUrl = `https://rule34.xxx/index.php?page=post&s=list&tags=${encodeURIComponent(cleanTags)}&pid=${pid}`;
+
+  const res = await universalFetch(webUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Referer': 'https://rule34.xxx/',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+    },
+  });
+
+  if (!res.ok) return [];
+  const html = await res.text();
+  const thumbRegex = /<span id="s(\d+)" class="thumb"[^>]*>[\s\S]*?<a [^>]*href="([^"]+)"[^>]*>[\s\S]*?<img src="([^"]+)"[\s\S]*?title="([^"]*)"/g;
+
+  const items: FeedItem[] = [];
+  let match;
+
+  while ((match = thumbRegex.exec(html)) !== null) {
+    const id = match[1];
+    const postHref = match[2];
+    const thumbSrc = match[3];
+    const titleAttr = match[4] || '';
+
+    const scoreMatch = titleAttr.match(/score:(-?\d+)/);
+    const ratingMatch = titleAttr.match(/rating:([a-z]+)/);
+    const score = scoreMatch ? parseInt(scoreMatch[1], 10) : 0;
+    const rating = ratingMatch ? normalizeRating(ratingMatch[1]) : 'e';
+
+    const cleanTagsString = titleAttr.replace(/score:-?\d+/, '').replace(/rating:[a-z]+/, '').trim();
+    const rawTags = cleanTagsString.split(/\s+/).filter(Boolean);
+
+    const cleanThumb = thumbSrc.split('?')[0];
+    const isVideo = rawTags.includes('video') || rawTags.includes('webm') || rawTags.includes('mp4') || rawTags.includes('sound');
+    const isGif = !isVideo && (rawTags.includes('animated_gif') || rawTags.includes('gif') || rawTags.includes('animated'));
+
+    let mediaUrl: string;
+    let type: 'video' | 'image' | 'gif';
+
+    if (isVideo) {
+      mediaUrl = cleanThumb.replace('wimg.rule34.xxx', 'nymp4.rule34.xxx').replace('/thumbnails/', '/images/').replace('thumbnail_', '').replace(/\.[a-z0-9]+$/i, '.mp4') + `?${id}`;
+      type = 'video';
+    } else if (isGif) {
+      mediaUrl = cleanThumb.replace('/thumbnails/', '/images/').replace('thumbnail_', '').replace(/\.[a-z0-9]+$/i, '.gif') + `?${id}`;
+      type = 'gif';
+    } else {
+      mediaUrl = cleanThumb.replace('/thumbnails/', '/images/').replace('thumbnail_', '').replace(/\.[a-z0-9]+$/i, '.jpeg') + `?${id}`;
+      type = detectMediaType(mediaUrl);
+    }
+
+    items.push({
+      id: `rule34_${id}`,
+      sourceId: 'rule34',
+      sourceName: 'Rule34',
+      sourceUrl: `https://rule34.xxx${postHref.startsWith('/') ? postHref : '/' + postHref}`,
+      type,
+      mediaUrl,
+      previewUrl: thumbSrc,
+      tags: { all: rawTags, general: rawTags },
+      score,
+      rating,
+    });
+  }
+
+  return filterOutBlacklisted(items, blacklist);
+}
+
+// 3. e621
+export async function fetchNativeE621({ tags = '', page = 1, limit = 40, blacklist = [] as string[], credentials = {} as any }): Promise<FeedItem[]> {
+  const queryList = (tags || '').trim().split(/\s+/).filter(Boolean);
+  const negativeList = (blacklist || []).map(t => `-${t.trim().toLowerCase()}`).filter(Boolean);
+  const combinedTags = [...queryList, ...negativeList.slice(0, 5)].join(' ');
+
+  let apiUrl = `https://e621.net/posts.json?tags=${encodeURIComponent(combinedTags)}&page=${page}&limit=${limit}`;
+  if (credentials.username && credentials.apiKey) {
+    apiUrl += `&login=${encodeURIComponent(credentials.username)}&api_key=${encodeURIComponent(credentials.apiKey)}`;
+  }
+
+  const res = await universalFetch(apiUrl, {
+    headers: {
+      'User-Agent': 'GoonScroll/1.0 (by Duck on iOS)',
+      'Accept': 'application/json',
+    },
+  });
+
+  if (!res.ok) return [];
+  const data = await res.json();
+  if (!data.posts || !Array.isArray(data.posts)) return [];
+
+  const items: FeedItem[] = data.posts
+    .filter((post: any) => post.file && post.file.url)
+    .map((post: any) => {
+      const allTags = Object.values(post.tags || {}).flat().filter(Boolean) as string[];
+      const mediaUrl = post.file.url;
+      const previewUrl = post.preview?.url || post.sample?.url || mediaUrl;
+      const type = detectMediaType(mediaUrl);
+
+      return {
+        id: `e621_${post.id}`,
+        sourceId: 'e621',
+        sourceName: 'e621',
+        sourceUrl: `https://e621.net/posts/${post.id}`,
+        type,
+        mediaUrl,
+        previewUrl,
+        tags: {
+          all: allTags,
+          general: post.tags?.general || [],
+          artist: post.tags?.artist || [],
+          character: post.tags?.character || [],
+          copyright: post.tags?.copyright || [],
+        },
+        score: post.score?.total || 0,
+        rating: normalizeRating(post.rating),
+        width: post.file?.width,
+        height: post.file?.height,
+      };
+    });
+
+  return filterOutBlacklisted(items, blacklist);
+}
+
+// 4. Unified Router
+export async function getNativeFeed({
+  source = 'rule34',
+  tags = '',
+  page = 1,
+  limit = 40,
+  blacklist = [] as string[],
+  credentials = {} as any,
+}): Promise<FeedItem[]> {
+  switch (source.toLowerCase()) {
+    case 'rule34':
+      return fetchNativeRule34({ tags, page: Math.max(0, page - 1), limit, blacklist, credentials: credentials.rule34 || {} });
+    case 'danbooru':
+      return fetchNativeDanbooru({ tags, page, limit, blacklist, credentials: credentials.danbooru || {} });
+    case 'e621':
+      return fetchNativeE621({ tags, page, limit, blacklist, credentials: credentials.e621 || {} });
+    default:
+      // Fallback to Rule34
+      return fetchNativeRule34({ tags, page: Math.max(0, page - 1), limit, blacklist, credentials: credentials.rule34 || {} });
+  }
+}

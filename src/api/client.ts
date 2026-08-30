@@ -1,6 +1,7 @@
 import { FeedItem, SourceOption, AppSettings } from '../types/feed';
 import { nativeStorage } from '../services/nativeStorage';
 import { nativePushToGitHub, nativePullFromGitHub } from '../services/nativeSync';
+import { getNativeFeed } from '../services/nativeBooruEngine';
 // @ts-ignore
 import { getFeed, getAutocomplete } from '../../server/adapters/index.js';
 
@@ -60,7 +61,7 @@ export async function fetchFeed(params: {
     const sourceBlacklist = settings.blacklist?.bySource?.[params.source] || [];
     const effectiveBlacklist = Array.from(new Set([...globalBlacklist, ...sourceBlacklist]));
 
-    const rawItems = await getFeed({
+    let rawItems = await getNativeFeed({
       source: params.source,
       tags: params.tags || '',
       page: params.page || 1,
@@ -68,6 +69,19 @@ export async function fetchFeed(params: {
       blacklist: effectiveBlacklist,
       credentials: settings.credentials || {},
     });
+
+    if ((!rawItems || rawItems.length === 0) && typeof getFeed === 'function') {
+      try {
+        rawItems = await getFeed({
+          source: params.source,
+          tags: params.tags || '',
+          page: params.page || 1,
+          limit: params.limit || 40,
+          blacklist: effectiveBlacklist,
+          credentials: settings.credentials || {},
+        });
+      } catch (e) {}
+    }
 
     return {
       items: (rawItems || []) as FeedItem[],
