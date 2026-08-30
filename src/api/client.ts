@@ -1,12 +1,31 @@
 import { FeedItem, SourceOption, AppSettings } from '../types/feed';
+import { nativeStorage } from '../services/nativeStorage';
+import { nativePushToGitHub, nativePullFromGitHub } from '../services/nativeSync';
 
 const API_BASE = '/api';
 
 export async function fetchSources(): Promise<SourceOption[]> {
-  const res = await fetch(`${API_BASE}/sources`);
-  if (!res.ok) throw new Error('Failed to fetch sources');
-  const data = await res.json();
-  return data.sources || [];
+  try {
+    const res = await fetch(`${API_BASE}/sources`);
+    if (res.ok) {
+      const data = await res.json();
+      return data.sources || [];
+    }
+  } catch (e) {}
+
+  // Fallback source list
+  return [
+    { id: 'rule34', name: 'Rule34', icon: '🔞', supportsAutocomplete: true },
+    { id: 'e621', name: 'e621', icon: '🐾', supportsAutocomplete: true },
+    { id: 'danbooru', name: 'Danbooru', icon: '🎨', supportsAutocomplete: true },
+    { id: 'yande', name: 'Yande.re', icon: '🌸', supportsAutocomplete: true },
+    { id: 'konachan', name: 'Konachan', icon: '⛩️', supportsAutocomplete: true },
+    { id: 'rule34paheal', name: 'Rule34 Paheal', icon: '🎭', supportsAutocomplete: true },
+    { id: 'xbooru', name: 'Xbooru', icon: '⚡', supportsAutocomplete: true },
+    { id: 'gelbooru', name: 'Gelbooru', icon: '💎', supportsAutocomplete: true },
+    { id: 'realbooru', name: 'Realbooru', icon: '📷', supportsAutocomplete: true },
+    { id: 'reddit', name: 'Reddit', icon: '🤖', supportsAutocomplete: true },
+  ];
 }
 
 export async function fetchFeed(params: {
@@ -28,135 +47,230 @@ export async function fetchFeed(params: {
 
 export async function fetchAutocomplete(source: string, query: string): Promise<string[]> {
   if (!query || query.length < 2) return [];
-  const params = new URLSearchParams({ source, query });
-  const res = await fetch(`${API_BASE}/autocomplete?${params.toString()}`);
-  if (!res.ok) return [];
-  const data = await res.json();
-  return data.suggestions || [];
+  try {
+    const params = new URLSearchParams({ source, query });
+    const res = await fetch(`${API_BASE}/autocomplete?${params.toString()}`);
+    if (res.ok) {
+      const data = await res.json();
+      return data.suggestions || [];
+    }
+  } catch (e) {}
+  return [];
 }
 
 export async function fetchSettings(): Promise<AppSettings> {
-  const res = await fetch(`${API_BASE}/settings`);
-  if (!res.ok) throw new Error('Failed to fetch settings');
-  return res.json();
+  try {
+    const res = await fetch(`${API_BASE}/settings`);
+    if (res.ok) return res.json();
+  } catch (e) {}
+  return nativeStorage.getSettings();
 }
 
 export async function updateSettings(settings: Partial<AppSettings>): Promise<AppSettings> {
-  const res = await fetch(`${API_BASE}/settings`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(settings),
-  });
-  if (!res.ok) throw new Error('Failed to update settings');
-  return res.json();
+  try {
+    const res = await fetch(`${API_BASE}/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings),
+    });
+    if (res.ok) return res.json();
+  } catch (e) {}
+  const current = nativeStorage.getSettings();
+  const merged: AppSettings = {
+    ...current,
+    ...settings,
+    blacklist: { ...current.blacklist, ...(settings.blacklist || {}) },
+    favoriteTags: { ...current.favoriteTags, ...(settings.favoriteTags || {}) },
+    credentials: { ...current.credentials, ...(settings.credentials || {}) },
+    preferences: { ...current.preferences, ...(settings.preferences || {}) },
+  };
+  return nativeStorage.saveSettings(merged);
 }
 
 export async function addBlacklistTag(tag: string, source: string = 'global'): Promise<AppSettings['blacklist']> {
-  const res = await fetch(`${API_BASE}/blacklist/add`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ tag, source }),
-  });
-  if (!res.ok) throw new Error('Failed to add blacklist tag');
-  const data = await res.json();
-  return data.blacklist;
+  try {
+    const res = await fetch(`${API_BASE}/blacklist/add`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tag, source }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data.blacklist;
+    }
+  } catch (e) {}
+  const settings = nativeStorage.getSettings();
+  if (source === 'global') {
+    if (!settings.blacklist.global.includes(tag)) {
+      settings.blacklist.global.push(tag);
+    }
+  } else {
+    settings.blacklist.bySource[source] = settings.blacklist.bySource[source] || [];
+    if (!settings.blacklist.bySource[source].includes(tag)) {
+      settings.blacklist.bySource[source].push(tag);
+    }
+  }
+  nativeStorage.saveSettings(settings);
+  return settings.blacklist;
 }
 
 export async function removeBlacklistTag(tag: string, source: string = 'global'): Promise<AppSettings['blacklist']> {
-  const res = await fetch(`${API_BASE}/blacklist/remove`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ tag, source }),
-  });
-  if (!res.ok) throw new Error('Failed to remove blacklist tag');
-  const data = await res.json();
-  return data.blacklist;
+  try {
+    const res = await fetch(`${API_BASE}/blacklist/remove`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tag, source }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data.blacklist;
+    }
+  } catch (e) {}
+  const settings = nativeStorage.getSettings();
+  if (source === 'global') {
+    settings.blacklist.global = settings.blacklist.global.filter(t => t !== tag);
+  } else if (settings.blacklist.bySource[source]) {
+    settings.blacklist.bySource[source] = settings.blacklist.bySource[source].filter(t => t !== tag);
+  }
+  nativeStorage.saveSettings(settings);
+  return settings.blacklist;
 }
 
 export async function addFavoriteTag(tag: string, source: string = 'global'): Promise<AppSettings['favoriteTags']> {
-  const res = await fetch(`${API_BASE}/favorites/tags/add`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ tag, source }),
-  });
-  if (!res.ok) throw new Error('Failed to add favorite tag');
-  const data = await res.json();
-  return data.favoriteTags;
+  try {
+    const res = await fetch(`${API_BASE}/favorites/tags/add`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tag, source }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data.favoriteTags;
+    }
+  } catch (e) {}
+  const settings = nativeStorage.getSettings();
+  if (source === 'global') {
+    if (!settings.favoriteTags.global.includes(tag)) {
+      settings.favoriteTags.global.push(tag);
+    }
+  } else {
+    settings.favoriteTags.bySource[source] = settings.favoriteTags.bySource[source] || [];
+    if (!settings.favoriteTags.bySource[source].includes(tag)) {
+      settings.favoriteTags.bySource[source].push(tag);
+    }
+  }
+  nativeStorage.saveSettings(settings);
+  return settings.favoriteTags;
 }
 
 export async function removeFavoriteTag(tag: string, source: string = 'global'): Promise<AppSettings['favoriteTags']> {
-  const res = await fetch(`${API_BASE}/favorites/tags/remove`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ tag, source }),
-  });
-  if (!res.ok) throw new Error('Failed to remove favorite tag');
-  const data = await res.json();
-  return data.favoriteTags;
+  try {
+    const res = await fetch(`${API_BASE}/favorites/tags/remove`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tag, source }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data.favoriteTags;
+    }
+  } catch (e) {}
+  const settings = nativeStorage.getSettings();
+  if (source === 'global') {
+    settings.favoriteTags.global = settings.favoriteTags.global.filter(t => t !== tag);
+  } else if (settings.favoriteTags.bySource[source]) {
+    settings.favoriteTags.bySource[source] = settings.favoriteTags.bySource[source].filter(t => t !== tag);
+  }
+  nativeStorage.saveSettings(settings);
+  return settings.favoriteTags;
 }
 
 export async function fetchFavorites(): Promise<FeedItem[]> {
-  const res = await fetch(`${API_BASE}/favorites`);
-  if (!res.ok) throw new Error('Failed to fetch favorites');
-  const data = await res.json();
-  return data.favorites || [];
+  try {
+    const res = await fetch(`${API_BASE}/favorites`);
+    if (res.ok) {
+      const data = await res.json();
+      return data.favorites || [];
+    }
+  } catch (e) {}
+  return nativeStorage.getFavorites();
 }
 
 export async function toggleFavoriteApi(item: FeedItem): Promise<{ isFavorited: boolean; total: number }> {
-  const res = await fetch(`${API_BASE}/favorites/toggle`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ item }),
-  });
-  if (!res.ok) throw new Error('Failed to toggle favorite');
-  return res.json();
+  try {
+    const res = await fetch(`${API_BASE}/favorites/toggle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item }),
+    });
+    if (res.ok) return res.json();
+  } catch (e) {}
+  return nativeStorage.toggleFavorite(item);
 }
 
 export async function exportBackupJson(): Promise<void> {
-  window.open(`${API_BASE}/backup/export`, '_blank');
+  const data = nativeStorage.exportBackup();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `goonscroll_backup_${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export async function importBackupJson(backupData: any): Promise<any> {
-  const res = await fetch(`${API_BASE}/backup/import`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(backupData),
-  });
-  if (!res.ok) throw new Error('Failed to import backup');
-  return res.json();
+  try {
+    const res = await fetch(`${API_BASE}/backup/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(backupData),
+    });
+    if (res.ok) return res.json();
+  } catch (e) {}
+  nativeStorage.importBackup(backupData);
+  return { success: true, message: 'Settings & favorites imported' };
 }
 
 export async function getGitHubSyncStatus(): Promise<{ configured: boolean }> {
-  const res = await fetch(`${API_BASE}/backup/github/status`);
-  if (!res.ok) return { configured: false };
-  return res.json();
+  try {
+    const res = await fetch(`${API_BASE}/backup/github/status`);
+    if (res.ok) return res.json();
+  } catch (e) {}
+  return { configured: false };
 }
 
 export async function syncToGitHubGist(token?: string): Promise<{ success: boolean; gistId: string; updatedAt: string; url: string }> {
-  const res = await fetch(`${API_BASE}/backup/github/sync`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Failed to sync to GitHub');
-  return data;
+  try {
+    const res = await fetch(`${API_BASE}/backup/github/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+    if (res.ok) return res.json();
+  } catch (e) {}
+
+  if (!token) throw new Error('GitHub token required');
+  const result = await nativePushToGitHub(token);
+  return { success: true, gistId: 'repository', updatedAt: result.updatedAt, url: 'https://github.com/lalaliwe/goonscroll' };
 }
 
 export async function pullFromGitHubGist(token?: string): Promise<{ success: boolean; result: any; updatedAt: string }> {
-  const res = await fetch(`${API_BASE}/backup/github/pull`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Failed to pull from GitHub');
-  return data;
+  try {
+    const res = await fetch(`${API_BASE}/backup/github/pull`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+    if (res.ok) return res.json();
+  } catch (e) {}
+
+  if (!token) throw new Error('GitHub token required');
+  return nativePullFromGitHub(token);
 }
 
 export function getProxiedMediaUrl(url: string, nonce?: number): string {
   if (!url) return '';
-  // If already relative without proxy
   if (url.startsWith('/api/proxy')) {
     return nonce ? `${url}&_t=${nonce}` : url;
   }

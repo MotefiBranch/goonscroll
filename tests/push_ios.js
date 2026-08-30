@@ -11,11 +11,11 @@ if (!token) {
 try {
   execSync('git add .', { stdio: 'inherit' });
   try {
-    execSync('git commit -m "Fix video audio unmute: decouple volume synchronization from playback lifecycle and autoplay restrictions"', { stdio: 'inherit' });
+    execSync('git commit -m "Add Capacitor iOS native app configuration and GitHub Actions automated IPA builder"', { stdio: 'inherit' });
   } catch (e) {}
   execSync('git pull --rebase origin main', { stdio: 'inherit' });
   execSync('git push origin main', { stdio: 'inherit' });
-  console.log('✔ Successfully pushed video audio fix to https://github.com/lalaliwe/goonscroll');
+  console.log('✔ Successfully pushed iOS Capacitor project & CI workflow to https://github.com/lalaliwe/goonscroll');
 } catch (err) {
   console.error('Git error:', err.message);
   process.exit(1);
