@@ -1,13 +1,34 @@
 import { Capacitor, CapacitorHttp, HttpOptions } from '@capacitor/core';
 
+function normalizeHeaders(headers: any): Record<string, string> {
+  const result: Record<string, string> = {};
+  if (!headers) return result;
+  if (typeof headers.forEach === 'function') {
+    headers.forEach((val: string, key: string) => {
+      result[key] = val;
+    });
+  } else if (typeof headers === 'object') {
+    for (const [k, v] of Object.entries(headers)) {
+      if (typeof v === 'string') {
+        result[k] = v;
+      }
+    }
+  }
+  return result;
+}
+
 export async function universalFetch(url: string, options: any = {}) {
-  // If running natively on iOS / Android and accessing an external https:// API
-  if (Capacitor.isNativePlatform() && (url.startsWith('http://') || url.startsWith('https://'))) {
+  const isExternalUrl = url.startsWith('http://') || url.startsWith('https://');
+
+  // If running natively on iOS / Android and accessing an external API
+  if (Capacitor.isNativePlatform() && isExternalUrl) {
     try {
+      const cleanHeaders = normalizeHeaders(options.headers);
+      
       const httpOptions: HttpOptions = {
         url,
         method: options.method || 'GET',
-        headers: options.headers || {},
+        headers: cleanHeaders,
         data: options.body ? (typeof options.body === 'string' ? JSON.parse(options.body) : options.body) : undefined,
       };
 

@@ -52,6 +52,7 @@ export interface UserPreferences {
   ratingFilter: 'all' | 'questionable' | 'explicit';
   favoriteSaltingPattern: FavoriteSaltingPattern;
   port: number;
+  customServerUrl?: string;
 }
 
 export interface AppSettings {

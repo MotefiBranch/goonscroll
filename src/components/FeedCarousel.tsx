@@ -17,9 +17,10 @@ const ALL_SOURCES = [
 
 interface FeedCarouselProps {
   isModalOpen?: boolean;
+  onOpenSettings?: () => void;
 }
 
-export const FeedCarousel: React.FC<FeedCarouselProps> = ({ isModalOpen = false }) => {
+export const FeedCarousel: React.FC<FeedCarouselProps> = ({ isModalOpen = false, onOpenSettings }) => {
   const {
     source,
     searchTags,
@@ -83,6 +84,14 @@ export const FeedCarousel: React.FC<FeedCarouselProps> = ({ isModalOpen = false 
           >
             <span>🔄</span> <span>Retry {currentSourceObj?.name || 'Feed'}</span>
           </button>
+          {onOpenSettings && (
+            <button
+              onClick={onOpenSettings}
+              className="w-full py-2 px-4 bg-zinc-800/80 hover:bg-zinc-700 active:scale-95 text-zinc-300 font-medium rounded-xl text-xs transition border border-white/10 flex items-center justify-center gap-2"
+            >
+              <span>⚙️</span> <span>Connection & Account Settings</span>
+            </button>
+          )}
         </div>
 
         <div className="w-full max-w-xs pt-4 border-t border-white/10">

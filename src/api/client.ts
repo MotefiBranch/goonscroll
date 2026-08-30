@@ -38,17 +38,20 @@ export async function fetchFeed(params: {
   limit?: number;
 }): Promise<{ items: FeedItem[]; page: number; count: number }> {
   const isNative = typeof window !== 'undefined' && (window.location.protocol === 'ionic:' || window.location.protocol === 'capacitor:');
+  const settings = await fetchSettings();
+  const customServer = settings.preferences?.customServerUrl?.trim();
 
-  // 1. If in web browser mode, query the Express backend server
-  if (!isNative) {
+  // 1. If custom server is configured, or in web browser mode, query the backend server
+  if (customServer || !isNative) {
     try {
+      const apiBase = customServer ? `${customServer.replace(/\/+$/, '')}/api` : API_BASE;
       const query = new URLSearchParams();
       query.set('source', params.source);
       if (params.tags) query.set('tags', params.tags);
       if (params.page) query.set('page', params.page.toString());
       if (params.limit) query.set('limit', params.limit.toString());
 
-      const res = await fetch(`${API_BASE}/feed?${query.toString()}`);
+      const res = await fetch(`${apiBase}/feed?${query.toString()}`);
       if (res.ok) {
         const data = await res.json();
         if (data.items && data.items.length > 0) {
@@ -331,6 +334,15 @@ export async function pullFromGitHubGist(token?: string): Promise<{ success: boo
 
 export function getProxiedMediaUrl(url: string, nonce?: number): string {
   if (!url) return '';
+  const settings = nativeStorage.getSettings();
+  const customServer = settings?.preferences?.customServerUrl?.trim();
+  
+  if (customServer) {
+    const host = customServer.replace(/\/+$/, '');
+    const base = `${host}/api/proxy/media?url=${encodeURIComponent(url)}`;
+    return nonce ? `${base}&_t=${nonce}` : base;
+  }
+
   // In native Capacitor iOS mode, media loads directly via native iOS network stack!
   const isNative = typeof window !== 'undefined' && (window.location.protocol === 'ionic:' || window.location.protocol === 'capacitor:');
   if (isNative) {

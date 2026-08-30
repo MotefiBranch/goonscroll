@@ -11,13 +11,13 @@ if (!token) {
 try {
   execSync('git add .', { stdio: 'inherit' });
   try {
-    execSync('git commit -m "Enable NSAppTransportSecurity in Info.plist and add live diagnostic error view to feed"', { stdio: 'inherit' });
+    execSync('git commit -m "Add normalizeHeaders for CapacitorHttp, Remote Server Host setting, and Settings button on diagnostic screen"', { stdio: 'inherit' });
   } catch (e) {}
   
   const remoteUrl = `https://lalaliwe:${token}@github.com/lalaliwe/goonscroll.git`;
   execSync(`git pull --rebase "${remoteUrl}" main`, { stdio: 'inherit' });
   execSync(`git push "${remoteUrl}" main`, { stdio: 'inherit' });
-  console.log('✔ Successfully pushed ATS & diagnostics to https://github.com/lalaliwe/goonscroll');
+  console.log('✔ Successfully pushed header & server host updates to https://github.com/lalaliwe/goonscroll');
 } catch (err) {
   console.error('Git error:', err.message);
   process.exit(1);

@@ -36,7 +36,10 @@ export function App() {
       <main className="relative flex-1 w-full h-full overflow-hidden flex">
         {/* Primary Feed Pane */}
         <div className="relative flex-1 h-full w-full overflow-hidden">
-          <FeedCarousel isModalOpen={isSettingsOpen || isTagDrawerOpen} />
+          <FeedCarousel
+            isModalOpen={isSettingsOpen || isTagDrawerOpen}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+          />
 
           {/* Overlays on top of active post */}
           {currentItem && (
@@ -58,7 +61,10 @@ export function App() {
         {/* Secondary Split Pane (Dual Feed) if active */}
         {isDualPane && (
           <div className="hidden md:flex relative flex-1 h-full w-full border-l border-white/10 overflow-hidden">
-            <FeedCarousel isModalOpen={isSettingsOpen || isTagDrawerOpen} />
+            <FeedCarousel
+              isModalOpen={isSettingsOpen || isTagDrawerOpen}
+              onOpenSettings={() => setIsSettingsOpen(true)}
+            />
           </div>
         )}
       </main>

@@ -24,6 +24,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   const [danUsername, setDanUsername] = useState(settings?.credentials?.danbooru?.username || '');
   const [danApiKey, setDanApiKey] = useState(settings?.credentials?.danbooru?.apiKey || '');
 
+  const [customServerUrl, setCustomServerUrl] = useState(settings?.preferences?.customServerUrl || '');
+
   if (!isOpen) return null;
 
   const handleSaveAccounts = async (e: React.FormEvent) => {
@@ -34,11 +36,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           e621: { username: e6Username, apiKey: e6ApiKey },
           danbooru: { username: danUsername, apiKey: danApiKey },
         },
+        preferences: {
+          ...(settings?.preferences || {} as any),
+          customServerUrl: customServerUrl.trim() || undefined,
+        },
       });
       setFullSettings(updated);
-      showToast({ text: 'Account credentials saved!', duration: 3000 });
+      showToast({ text: 'Settings & connection saved!', duration: 3000 });
     } catch (err) {
-      showToast({ text: 'Failed to save credentials', duration: 4000 });
+      showToast({ text: 'Failed to save settings', duration: 4000 });
     }
   };
 
@@ -204,12 +210,43 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 </div>
               </div>
 
+              {/* Custom Server Host */}
+              <div className="p-4 bg-zinc-900/60 border border-white/10 rounded-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-blue-400">🌐 Backend Connection Mode</h4>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-medium">
+                    {customServerUrl ? 'Custom Host' : 'Direct Mobile Mode'}
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-400">
+                  By default, the app connects directly to Booru APIs on your phone. You can also specify your PC's IP (<code className="text-zinc-300 font-mono">http://192.168.x.x:8765</code>) to use your computer's server over Wi-Fi.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={customServerUrl}
+                    onChange={e => setCustomServerUrl(e.target.value)}
+                    placeholder="Leave empty for Direct Mode (e.g. http://192.168.1.15:8765)"
+                    className="flex-1 bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-500 outline-none focus:border-blue-500 font-mono"
+                  />
+                  {customServerUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setCustomServerUrl('')}
+                      className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs rounded-lg font-medium transition"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+
               <div className="flex justify-end">
                 <button
                   type="submit"
                   className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-bold rounded-xl shadow active:scale-95 transition-all"
                 >
-                  Save Account Keys
+                  Save Settings & Keys
                 </button>
               </div>
             </form>
