@@ -29,7 +29,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   const proxiedSrc = getProxiedMediaUrl(url);
 
-  // Sync active state with playback
+  // 1. Play / Pause & Slide Lifecycle (only runs when slide changes or mounts)
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -37,7 +37,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (isActive) {
       video.currentTime = 0;
       video.muted = isMuted;
-      video.volume = isMuted ? 0 : volume;
+      video.volume = volume;
 
       const playPromise = video.play();
       if (playPromise !== undefined) {
@@ -64,7 +64,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       video.pause();
       setIsPlaying(false);
     }
-  }, [isActive, isMuted, volume, proxiedSrc]);
+  }, [isActive, proxiedSrc]);
+
+  // 2. Audio Mute & Volume Sync (runs smoothly without restarting playback or triggering autoplay policy)
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = isMuted;
+    video.volume = volume;
+  }, [isMuted, volume]);
 
   const togglePlayPause = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();

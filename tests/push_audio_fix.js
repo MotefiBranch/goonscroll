@@ -11,11 +11,11 @@ if (!token) {
 try {
   execSync('git add .', { stdio: 'inherit' });
   try {
-    execSync('git commit -m "Update Rule34 adapter with full browser headers, safe error recovery, and server-side blacklist filtering"', { stdio: 'inherit' });
+    execSync('git commit -m "Fix video audio unmute: decouple volume synchronization from playback lifecycle and autoplay restrictions"', { stdio: 'inherit' });
   } catch (e) {}
   execSync('git pull --rebase origin main', { stdio: 'inherit' });
   execSync('git push origin main', { stdio: 'inherit' });
-  console.log('✔ Successfully pushed Rule34 adapter fix to https://github.com/lalaliwe/goonscroll');
+  console.log('✔ Successfully pushed video audio fix to https://github.com/lalaliwe/goonscroll');
 } catch (err) {
   console.error('Git error:', err.message);
   process.exit(1);
