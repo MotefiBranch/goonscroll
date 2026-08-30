@@ -10,7 +10,7 @@ export async function fetchYande({ tags = '', page = 1, limit = 40, blacklist = 
     },
   });
 
-  if (!response.ok) return [];
+  if (!response.ok) throw new Error(`Yande.re HTTP ${response.status}: ${response.statusText || 'Failed'}`);
   const data = await response.json();
   if (!Array.isArray(data)) return [];
 

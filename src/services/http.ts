@@ -1,4 +1,20 @@
-import { Capacitor, CapacitorHttp, HttpOptions } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+
+interface NativeHttpInterface {
+  request: (options: {
+    url: string;
+    method?: string;
+    headers?: Record<string, string>;
+    data?: string;
+  }) => Promise<{
+    status: number;
+    data: string;
+    headers: Record<string, string>;
+    url: string;
+  }>;
+}
+
+const NativeHttp = registerPlugin<NativeHttpInterface>('NativeHttp');
 
 function normalizeHeaders(headers: any): Record<string, string> {
   const result: Record<string, string> = {};
@@ -20,19 +36,17 @@ function normalizeHeaders(headers: any): Record<string, string> {
 export async function universalFetch(url: string, options: any = {}) {
   const isExternalUrl = url.startsWith('http://') || url.startsWith('https://');
 
-  // If running natively on iOS / Android and accessing an external API
+  // If running natively on iOS / Android, execute via our custom Swift URLSession plugin
   if (Capacitor.isNativePlatform() && isExternalUrl) {
     try {
       const cleanHeaders = normalizeHeaders(options.headers);
       
-      const httpOptions: HttpOptions = {
+      const res = await NativeHttp.request({
         url,
         method: options.method || 'GET',
         headers: cleanHeaders,
-        data: options.body ? (typeof options.body === 'string' ? JSON.parse(options.body) : options.body) : undefined,
-      };
-
-      const res = await CapacitorHttp.request(httpOptions);
+        data: typeof options.body === 'string' ? options.body : (options.body ? JSON.stringify(options.body) : undefined),
+      });
 
       return {
         ok: res.status >= 200 && res.status < 300,
@@ -56,14 +70,14 @@ export async function universalFetch(url: string, options: any = {}) {
           get: (headerName: string) => {
             const lower = headerName.toLowerCase();
             for (const [k, v] of Object.entries(res.headers || {})) {
-              if (k.toLowerCase() === lower) return v as string;
+              if (k.toLowerCase() === lower) return v;
             }
             return null;
           },
         },
       };
     } catch (err: any) {
-      console.warn('Native CapacitorHttp request failed, trying fallback:', err.message);
+      console.warn('NativeHttp plugin failed, falling back to browser fetch:', err.message);
       return fetch(url, options);
     }
   }

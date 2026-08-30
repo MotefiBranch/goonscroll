@@ -11,7 +11,7 @@ export async function fetchKonachan({ tags = '', page = 1, limit = 40, blacklist
     },
   });
 
-  if (!response.ok) return [];
+  if (!response.ok) throw new Error(`Konachan HTTP ${response.status}: ${response.statusText || 'Failed'}`);
   const data = await response.json().catch(() => []);
   if (!Array.isArray(data)) return [];
 

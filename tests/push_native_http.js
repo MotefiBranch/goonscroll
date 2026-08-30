@@ -11,13 +11,13 @@ if (!token) {
 try {
   execSync('git add .', { stdio: 'inherit' });
   try {
-    execSync('git commit -m "Optimize GitHub Actions iOS workflow without setup-xcode overhead"', { stdio: 'inherit' });
+    execSync('git commit -m "Add native Swift URLSession plugin NativeHttp to bypass WebKit CORS on iOS"', { stdio: 'inherit' });
   } catch (e) {}
   
   const remoteUrl = `https://lalaliwe:${token}@github.com/lalaliwe/goonscroll.git`;
   execSync(`git pull --rebase "${remoteUrl}" main`, { stdio: 'inherit' });
   execSync(`git push "${remoteUrl}" main`, { stdio: 'inherit' });
-  console.log('✔ Successfully pushed workflow optimization to https://github.com/lalaliwe/goonscroll');
+  console.log('✔ Successfully pushed NativeHttp Swift plugin to https://github.com/lalaliwe/goonscroll');
 } catch (err) {
   console.error('Git error:', err.message);
   process.exit(1);
