@@ -13,11 +13,12 @@ interface FeedState {
   isLoading: boolean;
   hasMore: boolean;
   isDualPane: boolean;
-
+  lastError: string | null;
   setSource: (source: string) => void;
   setSearchTags: (tags: string) => void;
   toggleDualPane: () => void;
   loadInitialFeed: () => Promise<void>;
+  retry: () => Promise<void>;
   fetchNextPage: () => Promise<void>;
   setCurrentIndex: (index: number) => void;
   nextItem: () => void;
@@ -88,14 +89,20 @@ export const useFeedStore = create<FeedState>((set, get) => ({
   hasMore: true,
   isDualPane: false,
 
+  lastError: null,
+
+  retry: async () => {
+    await get().loadInitialFeed();
+  },
+
   setSource: source => {
     if (get().source === source) return;
-    set({ source, items: [], currentIndex: 0, page: 1, favPage: 1, hasMore: true });
+    set({ source, items: [], currentIndex: 0, page: 1, favPage: 1, hasMore: true, lastError: null });
     get().loadInitialFeed();
   },
 
   setSearchTags: searchTags => {
-    set({ searchTags, items: [], currentIndex: 0, page: 1, favPage: 1, hasMore: true });
+    set({ searchTags, items: [], currentIndex: 0, page: 1, favPage: 1, hasMore: true, lastError: null });
     get().loadInitialFeed();
   },
 
@@ -105,7 +112,7 @@ export const useFeedStore = create<FeedState>((set, get) => ({
 
   loadInitialFeed: async () => {
     const { source, searchTags } = get();
-    set({ isLoading: true, items: [], currentIndex: 0, page: 1, favPage: 1, hasMore: true });
+    set({ isLoading: true, items: [], currentIndex: 0, page: 1, favPage: 1, hasMore: true, lastError: null });
 
     try {
       const settings = useSettingsStore.getState().settings;
@@ -141,10 +148,11 @@ export const useFeedStore = create<FeedState>((set, get) => ({
         favPage: 2,
         isLoading: false,
         hasMore: combinedItems.length > 0,
+        lastError: combinedItems.length === 0 ? 'No posts returned from source' : null,
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load initial feed:', err);
-      set({ isLoading: false, hasMore: false });
+      set({ isLoading: false, hasMore: false, lastError: err.message || String(err) });
     }
   },
 

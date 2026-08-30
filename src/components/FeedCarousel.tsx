@@ -4,16 +4,32 @@ import { useSettingsStore } from '../store/useSettingsStore';
 import { MediaItem } from './MediaItem';
 import { useGestures } from '../hooks/useGestures';
 
+const ALL_SOURCES = [
+  { id: 'rule34', name: 'Rule34', icon: '🎨' },
+  { id: 'e621', name: 'e621', icon: '🐾' },
+  { id: 'danbooru', name: 'Danbooru', icon: '🌸' },
+  { id: 'yande', name: 'Yande.re', icon: '👘' },
+  { id: 'konachan', name: 'Konachan', icon: '🐱' },
+  { id: 'rule34paheal', name: 'Rule34 Paheal', icon: '⚡' },
+  { id: 'xbooru', name: 'Xbooru', icon: '🔞' },
+  { id: 'reddit', name: 'Reddit', icon: '👽' },
+];
+
 interface FeedCarouselProps {
   isModalOpen?: boolean;
 }
 
 export const FeedCarousel: React.FC<FeedCarouselProps> = ({ isModalOpen = false }) => {
   const {
+    source,
+    searchTags,
     items,
     currentIndex,
     isLoading,
     hasMore,
+    lastError,
+    setSource,
+    retry,
     nextItem,
     prevItem,
   } = useFeedStore();
@@ -29,21 +45,60 @@ export const FeedCarousel: React.FC<FeedCarouselProps> = ({ isModalOpen = false 
 
   if (items.length === 0 && isLoading) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-[#101828] text-white">
+      <div className="w-full h-full flex flex-col items-center justify-center bg-[#101828] text-white p-6">
         <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-        <p className="text-zinc-400 text-sm animate-pulse">Loading feed...</p>
+        <p className="text-zinc-300 text-base font-semibold animate-pulse">Loading {source} feed...</p>
+        <p className="text-zinc-500 text-xs mt-1">Connecting to Booru API</p>
       </div>
     );
   }
 
   if (items.length === 0 && !isLoading) {
+    const currentSourceObj = ALL_SOURCES.find(s => s.id === source);
+
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-[#101828] text-white p-6 text-center">
-        <div className="text-5xl mb-4">🔍</div>
-        <h2 className="text-xl font-bold mb-2">No Posts Found</h2>
-        <p className="text-zinc-400 text-sm max-w-md">
-          No media matched your search or active blacklist filter. Try adjusting your tags or checking the blacklist in settings.
-        </p>
+      <div className="w-full h-full flex flex-col items-center justify-center bg-[#101828] text-white p-6 text-center overflow-y-auto">
+        <div className="text-5xl mb-3">{currentSourceObj?.icon || '🔍'}</div>
+        <h2 className="text-xl font-bold mb-1">No Posts Loaded ({currentSourceObj?.name || source})</h2>
+        
+        {searchTags ? (
+          <p className="text-zinc-400 text-xs mb-3">
+            Search tags: <span className="text-blue-400 font-mono">"{searchTags}"</span>
+          </p>
+        ) : null}
+
+        {lastError && (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 max-w-sm mb-4 text-left w-full">
+            <div className="text-xs font-semibold text-red-400 flex items-center gap-1.5 mb-1">
+              <span>⚠️</span> <span>Diagnostic Info:</span>
+            </div>
+            <p className="text-[11px] text-zinc-300 font-mono break-all">{lastError}</p>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-2 w-full max-w-xs mb-6">
+          <button
+            onClick={() => retry()}
+            className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-medium rounded-xl text-sm transition shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2"
+          >
+            <span>🔄</span> <span>Retry {currentSourceObj?.name || 'Feed'}</span>
+          </button>
+        </div>
+
+        <div className="w-full max-w-xs pt-4 border-t border-white/10">
+          <p className="text-xs text-zinc-400 mb-2 font-medium">Try another source:</p>
+          <div className="grid grid-cols-2 gap-2">
+            {ALL_SOURCES.filter(s => s.id !== source).slice(0, 4).map(s => (
+              <button
+                key={s.id}
+                onClick={() => setSource(s.id)}
+                className="py-2 px-3 bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 rounded-lg text-xs font-medium text-zinc-300 transition flex items-center justify-center gap-1.5"
+              >
+                <span>{s.icon}</span> <span>{s.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
