@@ -69,6 +69,7 @@ export async function fetchFeed(params: {
     const effectiveBlacklist = Array.from(new Set([...globalBlacklist, ...sourceBlacklist]));
 
     let rawItems: FeedItem[] = [];
+    let lastErr: Error | null = null;
     if (typeof getFeed === 'function') {
       try {
         rawItems = await getFeed({
@@ -79,18 +80,28 @@ export async function fetchFeed(params: {
           blacklist: effectiveBlacklist,
           credentials: settings.credentials || {},
         });
-      } catch (e) {}
+      } catch (e: any) {
+        lastErr = e;
+      }
     }
 
     if (!rawItems || rawItems.length === 0) {
-      rawItems = await getNativeFeed({
-        source: params.source,
-        tags: params.tags || '',
-        page: params.page || 1,
-        limit: params.limit || 40,
-        blacklist: effectiveBlacklist,
-        credentials: settings.credentials || {},
-      });
+      try {
+        rawItems = await getNativeFeed({
+          source: params.source,
+          tags: params.tags || '',
+          page: params.page || 1,
+          limit: params.limit || 40,
+          blacklist: effectiveBlacklist,
+          credentials: settings.credentials || {},
+        });
+      } catch (e: any) {
+        lastErr = e;
+      }
+    }
+
+    if ((!rawItems || rawItems.length === 0) && lastErr) {
+      throw lastErr;
     }
 
     return {
@@ -100,7 +111,7 @@ export async function fetchFeed(params: {
     };
   } catch (err: any) {
     console.error('Client-side booru fetch error:', err);
-    return { items: [], page: params.page || 1, count: 0 };
+    throw err;
   }
 }
 

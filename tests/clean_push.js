@@ -12,12 +12,12 @@ if (!token) {
 
 try {
   execSync('git add .', { stdio: 'inherit' });
-  execSync('git commit -m "Prevent recursive fetch loop and stack overflow in universalFetch"', { stdio: 'inherit' });
+  execSync('git commit -m "Explicitly register NativeHttpPlugin in MainViewController and propagate errors"', { stdio: 'inherit' });
   
   const remoteUrl = `https://MotefiBranch:${token}@github.com/MotefiBranch/goonscroll.git`;
   console.log('Pushing to MotefiBranch/goonscroll...');
   execSync(`git push "${remoteUrl}" main`, { stdio: 'inherit' });
-  console.log('✔ Successfully pushed recursion fix to MotefiBranch/goonscroll!');
+  console.log('✔ Successfully pushed plugin registration to MotefiBranch/goonscroll!');
 } catch (err) {
   console.error('Git error:', err.message);
   process.exit(1);
