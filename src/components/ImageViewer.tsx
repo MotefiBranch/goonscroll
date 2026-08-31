@@ -28,25 +28,33 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
     setRetryNonce(0);
   }, [url]);
 
-  // Multi-tier fallback pipeline (Full-res PNG -> JPG -> High-res Sample -> Preview):
+  // Multi-tier fallback pipeline (.jpeg -> .jpg -> .png -> high-res sample -> thumb):
   const candidateUrls: string[] = [];
   if (url) {
-    candidateUrls.push(url);
     if (url.includes('rule34.xxx')) {
       const clean = url.split('?')[0];
       const query = url.includes('?') ? '?' + url.split('?')[1] : '';
-      if (clean.endsWith('.jpg') || clean.endsWith('.jpeg')) {
-        candidateUrls.push(clean.replace(/\.jpe?g$/i, '.png') + query);
-      } else if (clean.endsWith('.png')) {
-        candidateUrls.push(clean.replace(/\.png$/i, '.jpg') + query);
-        candidateUrls.push(clean.replace(/\.png$/i, '.jpeg') + query);
-      }
-      if (clean.includes('/images/')) {
-        candidateUrls.push(clean.replace('/images/', '/samples/').replace(/\/([^/]+)$/, '/sample_$1').replace(/\.[a-z0-9]+$/i, '.jpg') + query);
-      }
+      const base = clean
+        .replace(/\/thumbnails\/+/g, '/images/')
+        .replace(/\/images\/+/g, '/images/')
+        .replace('thumbnail_', '')
+        .replace(/\.[a-z0-9]+$/i, '');
+      const sample = clean
+        .replace(/\/thumbnails\/+/g, '/samples/')
+        .replace(/\/images\/+/g, '/samples/')
+        .replace('thumbnail_', 'sample_')
+        .replace(/\/([^/]+)$/, (m) => m.startsWith('/sample_') ? m : '/sample_' + m.slice(1))
+        .replace(/\.[a-z0-9]+$/i, '.jpg') + query;
+
+      candidateUrls.push(base + '.jpeg' + query);
+      candidateUrls.push(base + '.jpg' + query);
+      candidateUrls.push(base + '.png' + query);
+      candidateUrls.push(sample);
+    } else {
+      candidateUrls.push(url);
     }
   }
-  if (previewUrl && previewUrl !== url) {
+  if (previewUrl && !candidateUrls.includes(previewUrl)) {
     candidateUrls.push(previewUrl);
   }
 
