@@ -1,20 +1,5 @@
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { Capacitor, CapacitorHttp, HttpOptions } from '@capacitor/core';
 
-interface NativeHttpInterface {
-  request: (options: {
-    url: string;
-    method?: string;
-    headers?: Record<string, string>;
-    data?: string;
-  }) => Promise<{
-    status: number;
-    data: string;
-    headers: Record<string, string>;
-    url: string;
-  }>;
-}
-
-const NativeHttp = registerPlugin<NativeHttpInterface>('NativeHttp');
 const rawFetch = typeof window !== 'undefined' ? window.fetch.bind(window) : fetch;
 
 function normalizeHeaders(headers: any): Record<string, string> {
@@ -37,16 +22,30 @@ function normalizeHeaders(headers: any): Record<string, string> {
 export async function universalFetch(url: string, options: any = {}) {
   const isExternalUrl = url.startsWith('http://') || url.startsWith('https://');
 
-  // If running natively on iOS / Android, execute via our custom Swift URLSession plugin
   if (Capacitor.isNativePlatform() && isExternalUrl) {
     const cleanHeaders = normalizeHeaders(options.headers);
-    
-    const res = await NativeHttp.request({
+
+    let parsedBody = undefined;
+    if (options.body) {
+      if (typeof options.body === 'string') {
+        try {
+          parsedBody = JSON.parse(options.body);
+        } catch (e) {
+          parsedBody = options.body;
+        }
+      } else {
+        parsedBody = options.body;
+      }
+    }
+
+    const httpOptions: HttpOptions = {
       url,
       method: options.method || 'GET',
       headers: cleanHeaders,
-      data: typeof options.body === 'string' ? options.body : (options.body ? JSON.stringify(options.body) : undefined),
-    });
+      data: parsedBody,
+    };
+
+    const res = await CapacitorHttp.request(httpOptions);
 
     return {
       ok: res.status >= 200 && res.status < 300,
@@ -70,7 +69,7 @@ export async function universalFetch(url: string, options: any = {}) {
         get: (headerName: string) => {
           const lower = headerName.toLowerCase();
           for (const [k, v] of Object.entries(res.headers || {})) {
-            if (k.toLowerCase() === lower) return v;
+            if (k.toLowerCase() === lower) return v as string;
           }
           return null;
         },
@@ -78,6 +77,5 @@ export async function universalFetch(url: string, options: any = {}) {
     };
   }
 
-  // Otherwise, use standard browser fetch
   return rawFetch(url, options);
 }

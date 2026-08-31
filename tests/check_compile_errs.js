@@ -5,7 +5,7 @@ const match = envContent.match(/GITHUB_TOKEN=([a-zA-Z0-9_]+)/g);
 const token = match ? match[match.length - 1].replace('GITHUB_TOKEN=', '') : process.env.GITHUB_TOKEN;
 
 async function checkXcodeCompileErrors() {
-  const jobsRes = await fetch('https://api.github.com/repos/MotefiBranch/goonscroll/actions/runs/33344439895/jobs', {
+  const jobsRes = await fetch('https://api.github.com/repos/MotefiBranch/goonscroll/actions/runs/33344594352/jobs', {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Accept': 'application/vnd.github.v3+json',

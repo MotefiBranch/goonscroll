@@ -1,4 +1,4 @@
-import type { CapacitorConfig } from '@capacitor/cli';
+import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.goonscroll.app',
@@ -6,7 +6,8 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     androidScheme: 'https',
-    iosScheme: 'ionic',
+    iosScheme: 'https',
+    hostname: 'goonscroll.app',
     cleartext: true,
   },
   plugins: {

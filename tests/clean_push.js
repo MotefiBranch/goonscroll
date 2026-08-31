@@ -12,7 +12,7 @@ if (!token) {
 
 try {
   execSync('git add .', { stdio: 'inherit' });
-  execSync('git commit -m "Embed NativeHttpPlugin in SceneDelegate.swift for clean Xcode compilation"', { stdio: 'inherit' });
+  execSync('git commit -m "Use official CapacitorHttp native plugin for reliable iOS network requests"', { stdio: 'inherit' });
   
   const remoteUrl = `https://MotefiBranch:${token}@github.com/MotefiBranch/goonscroll.git`;
   console.log('Pushing to MotefiBranch/goonscroll...');
