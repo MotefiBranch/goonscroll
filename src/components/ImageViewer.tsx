@@ -28,12 +28,29 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
     setRetryNonce(0);
   }, [url]);
 
-  // Multi-tier fallback pipeline (all proxied through GoonScroll server with proper Referer & User-Agent):
-  const candidates = [
-    getProxiedMediaUrl(url, retryNonce),
-    previewUrl && previewUrl !== url ? getProxiedMediaUrl(previewUrl, retryNonce) : null,
-  ].filter(Boolean) as string[];
+  // Multi-tier fallback pipeline (Full-res PNG -> JPG -> High-res Sample -> Preview):
+  const candidateUrls: string[] = [];
+  if (url) {
+    candidateUrls.push(url);
+    if (url.includes('rule34.xxx')) {
+      const clean = url.split('?')[0];
+      const query = url.includes('?') ? '?' + url.split('?')[1] : '';
+      if (clean.endsWith('.jpg') || clean.endsWith('.jpeg')) {
+        candidateUrls.push(clean.replace(/\.jpe?g$/i, '.png') + query);
+      } else if (clean.endsWith('.png')) {
+        candidateUrls.push(clean.replace(/\.png$/i, '.jpg') + query);
+        candidateUrls.push(clean.replace(/\.png$/i, '.jpeg') + query);
+      }
+      if (clean.includes('/images/')) {
+        candidateUrls.push(clean.replace('/images/', '/samples/').replace(/\/([^/]+)$/, '/sample_$1').replace(/\.[a-z0-9]+$/i, '.jpg') + query);
+      }
+    }
+  }
+  if (previewUrl && previewUrl !== url) {
+    candidateUrls.push(previewUrl);
+  }
 
+  const candidates = candidateUrls.map(u => getProxiedMediaUrl(u, retryNonce)).filter(Boolean);
   const currentSrc = candidates[srcIndex] || getProxiedMediaUrl(url, retryNonce);
   const thumbSrc = previewUrl ? getProxiedMediaUrl(previewUrl, retryNonce) : currentSrc;
 

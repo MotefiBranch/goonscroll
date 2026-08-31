@@ -59,41 +59,119 @@ export async function fetchNativeRule34({ tags = '', page = 0, limit = 42, black
     });
 
     if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        const items: FeedItem[] = data.map((post: any) => {
-          const rawTags = (post.tags || '').trim().split(/\s+/).filter(Boolean);
-          const isVideo = rawTags.includes('video') || rawTags.includes('animated') || (post.file_url && (post.file_url.endsWith('.mp4') || post.file_url.endsWith('.webm')));
-          
-          // Full resolution master file
-          const mediaUrl = post.file_url || post.sample_url || post.image;
-          const previewUrl = post.sample_url || post.preview_url || mediaUrl;
+      const text = await res.text();
+      try {
+        const data = JSON.parse(text);
+        if (Array.isArray(data) && data.length > 0) {
+          const items: FeedItem[] = data.map((post: any) => {
+            const rawTags = (post.tags || '').trim().split(/\s+/).filter(Boolean);
+            const isVideo = rawTags.includes('video') || rawTags.includes('animated') || (post.file_url && (post.file_url.endsWith('.mp4') || post.file_url.endsWith('.webm')));
+            
+            // Full resolution master file
+            const mediaUrl = post.file_url || post.sample_url || post.image;
+            const previewUrl = post.sample_url || post.preview_url || mediaUrl;
 
-          return {
-            id: `rule34_${post.id}`,
-            sourceId: 'rule34',
-            sourceName: 'Rule34',
-            sourceUrl: `https://rule34.xxx/index.php?page=post&s=view&id=${post.id}`,
-            type: isVideo ? 'video' : detectMediaType(mediaUrl),
-            mediaUrl,
-            previewUrl,
-            tags: { all: rawTags, general: rawTags },
-            score: parseInt(post.score || '0', 10),
-            rating: normalizeRating(post.rating),
-            width: parseInt(post.width || '0', 10),
-            height: parseInt(post.height || '0', 10),
-            aspectRatio: post.width && post.height ? parseInt(post.width, 10) / parseInt(post.height, 10) : undefined,
-          };
-        });
+            return {
+              id: `rule34_${post.id}`,
+              sourceId: 'rule34',
+              sourceName: 'Rule34',
+              sourceUrl: `https://rule34.xxx/index.php?page=post&s=view&id=${post.id}`,
+              type: isVideo ? 'video' : detectMediaType(mediaUrl),
+              mediaUrl,
+              previewUrl,
+              tags: { all: rawTags, general: rawTags },
+              score: parseInt(post.score || '0', 10),
+              rating: normalizeRating(post.rating),
+              width: parseInt(post.width || '0', 10),
+              height: parseInt(post.height || '0', 10),
+              aspectRatio: post.width && post.height ? parseInt(post.width, 10) / parseInt(post.height, 10) : undefined,
+            };
+          });
 
-        return filterOutBlacklisted(items, blacklist);
-      }
+          return filterOutBlacklisted(items, blacklist);
+        }
+      } catch (jsonErr) {}
     }
   } catch (err: any) {
     console.warn('Rule34 JSON API query failed:', err.message);
   }
 
-  return [];
+  // 2. Web list parser (High-resolution sample + PNG master reconstruction)
+  const cleanTags = tags.trim();
+  const pid = page * 42;
+  const webUrl = `https://rule34.xxx/index.php?page=post&s=list&tags=${encodeURIComponent(cleanTags)}&pid=${pid}`;
+
+  try {
+    const res = await universalFetch(webUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Referer': 'https://rule34.xxx/',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+    });
+
+    if (!res.ok) return [];
+    const html = await res.text();
+    const thumbRegex = /<span id="s(\d+)" class="thumb"[^>]*>[\s\S]*?<a [^>]*href="([^"]+)"[^>]*>[\s\S]*?<img src="([^"]+)"[\s\S]*?title="([^"]*)"/g;
+
+    const items: FeedItem[] = [];
+    let match;
+
+    while ((match = thumbRegex.exec(html)) !== null) {
+      const id = match[1];
+      const postHref = match[2];
+      const thumbSrc = match[3];
+      const titleAttr = match[4] || '';
+
+      const scoreMatch = titleAttr.match(/score:(-?\d+)/);
+      const ratingMatch = titleAttr.match(/rating:([a-z]+)/);
+      const score = scoreMatch ? parseInt(scoreMatch[1], 10) : 0;
+      const rating = ratingMatch ? normalizeRating(ratingMatch[1]) : 'e';
+
+      const cleanTagsString = titleAttr.replace(/score:-?\d+/, '').replace(/rating:[a-z]+/, '').trim();
+      const rawTags = cleanTagsString.split(/\s+/).filter(Boolean);
+
+      const cleanThumb = thumbSrc.split('?')[0];
+      const isVideo = rawTags.includes('video') || rawTags.includes('webm') || rawTags.includes('mp4') || rawTags.includes('sound');
+      const isGif = !isVideo && (rawTags.includes('animated_gif') || rawTags.includes('gif') || rawTags.includes('animated'));
+
+      let mediaUrl: string;
+      let type: 'video' | 'image' | 'gif';
+
+      if (isVideo) {
+        mediaUrl = cleanThumb.replace('wimg.rule34.xxx', 'nymp4.rule34.xxx').replace('/thumbnails/', '/images/').replace('thumbnail_', '').replace(/\.[a-z0-9]+$/i, '.mp4') + `?${id}`;
+        type = 'video';
+      } else if (isGif) {
+        mediaUrl = cleanThumb.replace('/thumbnails/', '/images/').replace('thumbnail_', '').replace(/\.[a-z0-9]+$/i, '.gif') + `?${id}`;
+        type = 'gif';
+      } else {
+        // High-resolution master file (tried as PNG first, cascading to JPG/Sample in ImageViewer)
+        mediaUrl = cleanThumb.replace('/thumbnails/', '/images/').replace('thumbnail_', '').replace(/\.[a-z0-9]+$/i, '.png') + `?${id}`;
+        type = detectMediaType(mediaUrl);
+      }
+
+      // High-resolution 1280px+ sample backdrop
+      const previewUrl = cleanThumb.replace('/thumbnails/', '/samples/').replace('thumbnail_', 'sample_').replace(/\.[a-z0-9]+$/i, '.jpg') + `?${id}`;
+
+      items.push({
+        id: `rule34_${id}`,
+        sourceId: 'rule34',
+        sourceName: 'Rule34',
+        sourceUrl: `https://rule34.xxx${postHref.startsWith('/') ? postHref : '/' + postHref}`,
+        type,
+        mediaUrl,
+        previewUrl,
+        tags: { all: rawTags, general: rawTags },
+        score,
+        rating,
+      });
+    }
+
+    return filterOutBlacklisted(items, blacklist);
+  } catch (webErr: any) {
+    console.error('Rule34 web parser error:', webErr.message);
+    return [];
+  }
 }
 
 // 2. Danbooru

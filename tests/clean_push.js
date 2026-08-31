@@ -12,12 +12,12 @@ if (!token) {
 
 try {
   execSync('git add .', { stdio: 'inherit' });
-  execSync('git commit -m "Upgrade native engine to fetch full-resolution lossless original images across all boorus"', { stdio: 'inherit' });
+  execSync('git commit -m "Support PNG master files and high-definition sample cascading in ImageViewer"', { stdio: 'inherit' });
   
   const remoteUrl = `https://MotefiBranch:${token}@github.com/MotefiBranch/goonscroll.git`;
   console.log('Pushing to MotefiBranch/goonscroll...');
   execSync(`git push "${remoteUrl}" main`, { stdio: 'inherit' });
-  console.log('✔ Successfully pushed high-res engine update to MotefiBranch/goonscroll!');
+  console.log('✔ Successfully pushed PNG & sample cascade update to MotefiBranch/goonscroll!');
 } catch (err) {
   console.error('Git error:', err.message);
   process.exit(1);
