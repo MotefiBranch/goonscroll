@@ -1,4 +1,4 @@
-async function inspectPost(id) {
+async function inspect(id) {
   const url = `https://rule34.xxx/index.php?page=post&s=view&id=${id}`;
   const res = await fetch(url, {
     headers: {
@@ -9,23 +9,21 @@ async function inspectPost(id) {
   
   const imgMatch = html.match(/<img[^>]+id="image"[^>]+src="([^"]+)"/i) || html.match(/<img[^>]+src="([^"]+)"[^>]+id="image"/i);
   const videoMatch = html.match(/<video[^>]+src="([^"]+)"/i) || html.match(/<source[^>]+src="([^"]+)"/i);
-  const origMatch = html.match(/<a[^>]+href="([^"]+)"[^>]*>Original image<\/a>/i);
+  const tagMatches = [...html.matchAll(/class="tag-type-[^"]*"[^>]*><a[^>]*>([^<]+)<\/a>/g)].map(m => m[1]);
   const sizeMatch = html.match(/Size: ([^<]+)/i);
-  const thumbMatch = html.match(/https?:\/\/[^"']+\/thumbnails\/[^"']+/i);
+  const typeMatch = html.match(/<a[^>]+href="([^"]+)"[^>]*>Original image<\/a>/i) || html.match(/<a[^>]+href="([^"]+)"[^>]*>Original video<\/a>/i);
 
   console.log(`\n=== Post ${id} ===`);
   console.log('Image src:', imgMatch ? imgMatch[1] : 'null');
   console.log('Video src:', videoMatch ? videoMatch[1] : 'null');
-  console.log('Original link:', origMatch ? origMatch[1] : 'null');
+  console.log('Original link:', typeMatch ? typeMatch[1] : 'null');
   console.log('Size:', sizeMatch ? sizeMatch[1] : 'null');
-  console.log('Thumb link:', thumbMatch ? thumbMatch[0] : 'null');
+  console.log('Tags (first 10):', tagMatches.slice(0, 10).join(', '));
 }
 
 async function main() {
-  const ids = ['18611590', '18611599', '18611591', '18611727'];
-  for (const id of ids) {
-    await inspectPost(id);
-  }
+  await inspect('18611749');
+  await inspect('18604408');
 }
 
 main();

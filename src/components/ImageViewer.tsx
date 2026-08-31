@@ -28,7 +28,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
     setRetryNonce(0);
   }, [url]);
 
-  // Multi-tier fallback pipeline (.jpeg -> .jpg -> .png -> high-res sample -> thumb):
+  // Multi-tier fallback pipeline (.gif -> .jpeg -> .jpg -> .png -> high-res sample -> thumb):
   const candidateUrls: string[] = [];
   if (url) {
     if (url.includes('rule34.xxx')) {
@@ -46,9 +46,17 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
         .replace(/\/([^/]+)$/, (m) => m.startsWith('/sample_') ? m : '/sample_' + m.slice(1))
         .replace(/\.[a-z0-9]+$/i, '.jpg') + query;
 
-      candidateUrls.push(base + '.jpeg' + query);
-      candidateUrls.push(base + '.jpg' + query);
-      candidateUrls.push(base + '.png' + query);
+      if (clean.endsWith('.gif')) {
+        candidateUrls.push(base + '.gif' + query);
+        candidateUrls.push(base + '.jpeg' + query);
+        candidateUrls.push(base + '.jpg' + query);
+        candidateUrls.push(base + '.png' + query);
+      } else {
+        candidateUrls.push(base + '.jpeg' + query);
+        candidateUrls.push(base + '.jpg' + query);
+        candidateUrls.push(base + '.png' + query);
+        candidateUrls.push(base + '.gif' + query);
+      }
       candidateUrls.push(sample);
     } else {
       candidateUrls.push(url);
