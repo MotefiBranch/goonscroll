@@ -19,11 +19,11 @@ export function App() {
   const [isTagDrawerOpen, setIsTagDrawerOpen] = useState(false);
 
   useEffect(() => {
-    // Initial server hydration
+    // Initial server hydration - runs once on mount
     initSettings();
     initFavorites();
     loadInitialFeed();
-  }, [initSettings, initFavorites, loadInitialFeed]);
+  }, []);
 
   const currentItem = items[currentIndex] || null;
 

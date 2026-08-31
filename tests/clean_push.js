@@ -12,7 +12,7 @@ if (!token) {
 
 try {
   execSync('git add .', { stdio: 'inherit' });
-  execSync('git commit -m "Fix WebKit URL pattern syntax error on native ionic scheme"', { stdio: 'inherit' });
+  execSync('git commit -m "Fix infinite re-render loop on app initialization in App.tsx"', { stdio: 'inherit' });
   
   const remoteUrl = `https://MotefiBranch:${token}@github.com/MotefiBranch/goonscroll.git`;
   console.log('Pushing to MotefiBranch/goonscroll...');
