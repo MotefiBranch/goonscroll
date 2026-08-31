@@ -132,6 +132,7 @@ export async function fetchNativeRule34({ tags = '', page = 0, limit = 42, black
       const rawTags = cleanTagsString.split(/\s+/).filter(Boolean);
 
       const cleanThumb = thumbSrc.split('?')[0];
+      const originalExt = cleanThumb.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase() || 'jpg';
       const isVideo = rawTags.includes('video') || rawTags.includes('webm') || rawTags.includes('mp4') || rawTags.includes('sound');
       const isGif = !isVideo && (rawTags.includes('animated_gif') || rawTags.includes('gif') || rawTags.includes('animated'));
 
@@ -139,19 +140,19 @@ export async function fetchNativeRule34({ tags = '', page = 0, limit = 42, black
       let type: 'video' | 'image' | 'gif';
 
       if (isVideo) {
-        mediaUrl = cleanThumb.replace('wimg.rule34.xxx', 'nymp4.rule34.xxx').replace('/thumbnails/', '/images/').replace('thumbnail_', '').replace(/\.[a-z0-9]+$/i, '.mp4') + `?${id}`;
+        mediaUrl = cleanThumb.replace('wimg.rule34.xxx', 'nymp4.rule34.xxx').replace(/\/thumbnails\/+/g, '/images/').replace('thumbnail_', '').replace(/\.[a-z0-9]+$/i, '.mp4') + `?${id}`;
         type = 'video';
       } else if (isGif) {
-        mediaUrl = cleanThumb.replace('/thumbnails/', '/images/').replace('thumbnail_', '').replace(/\.[a-z0-9]+$/i, '.gif') + `?${id}`;
+        mediaUrl = cleanThumb.replace(/\/thumbnails\/+/g, '/images/').replace('thumbnail_', '').replace(/\.[a-z0-9]+$/i, '.gif') + `?${id}`;
         type = 'gif';
       } else {
-        // High-resolution master file (tried as PNG first, cascading to JPG/Sample in ImageViewer)
-        mediaUrl = cleanThumb.replace('/thumbnails/', '/images/').replace('thumbnail_', '').replace(/\.[a-z0-9]+$/i, '.png') + `?${id}`;
+        // Full resolution master file using original extension (tried first, cascading to alternate ext in viewer)
+        mediaUrl = cleanThumb.replace(/\/thumbnails\/+/g, '/images/').replace('thumbnail_', '').replace(/\.[a-z0-9]+$/i, '.' + originalExt) + `?${id}`;
         type = detectMediaType(mediaUrl);
       }
 
-      // High-resolution 1280px+ sample backdrop
-      const previewUrl = cleanThumb.replace('/thumbnails/', '/samples/').replace('thumbnail_', 'sample_').replace(/\.[a-z0-9]+$/i, '.jpg') + `?${id}`;
+      // Sample fallback (or thumbnail if sample doesn't exist)
+      const previewUrl = cleanThumb.replace(/\/thumbnails\/+/g, '/samples/').replace('thumbnail_', 'sample_').replace(/\.[a-z0-9]+$/i, '.jpg') + `?${id}`;
 
       items.push({
         id: `rule34_${id}`,

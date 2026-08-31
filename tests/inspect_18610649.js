@@ -17,11 +17,10 @@ async function inspect(id) {
   console.log('Original link:', origMatch ? origMatch[1] : 'null');
   console.log('Resize link:', resizeMatch ? resizeMatch[1] : 'null');
   console.log('Size:', sizeMatch ? sizeMatch[1] : 'null');
+
+  // Let's test the thumbnail link on the post page or search list
+  const thumbMatch = html.match(/https?:\/\/[^"']+\/thumbnails\/[^"']+/i);
+  console.log('Thumb link:', thumbMatch ? thumbMatch[0] : 'null');
 }
 
-async function main() {
-  await inspect('18610686');
-  await inspect('18610683');
-}
-
-main();
+inspect('18610649');
