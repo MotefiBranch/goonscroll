@@ -122,22 +122,28 @@ export async function fetchAutocomplete(source: string, query: string): Promise<
 }
 
 export async function fetchSettings(): Promise<AppSettings> {
-  try {
-    const res = await fetch(`${API_BASE}/settings`);
-    if (res.ok) return res.json();
-  } catch (e) {}
+  const isNative = typeof window !== 'undefined' && (window.location.protocol === 'ionic:' || window.location.protocol === 'capacitor:');
+  if (!isNative) {
+    try {
+      const res = await fetch(`${API_BASE}/settings`);
+      if (res.ok) return res.json();
+    } catch (e) {}
+  }
   return nativeStorage.getSettings();
 }
 
 export async function updateSettings(settings: Partial<AppSettings>): Promise<AppSettings> {
-  try {
-    const res = await fetch(`${API_BASE}/settings`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(settings),
-    });
-    if (res.ok) return res.json();
-  } catch (e) {}
+  const isNative = typeof window !== 'undefined' && (window.location.protocol === 'ionic:' || window.location.protocol === 'capacitor:');
+  if (!isNative) {
+    try {
+      const res = await fetch(`${API_BASE}/settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      });
+      if (res.ok) return res.json();
+    } catch (e) {}
+  }
   const current = nativeStorage.getSettings();
   const merged: AppSettings = {
     ...current,
